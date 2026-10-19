@@ -1,0 +1,25 @@
+# Maintainer: CharOfString <root@charofstring.cc>
+
+pkgname=gxde-wallpaper
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='GXDE wallpaper selecter.'
+arch=('x86_64' 'aarch64' 'loong64' 'riscv64')
+url='https://gitee.com/GXDE-OS/gxde-wallpaper-chooser'
+license=('unknown')
+depends=('qt6-base' 'dtk2widget-qt6' 'gsettings-qt6')
+makedepends=('cmake')
+source=()
+sha256sums=()
+
+build() {
+  CXXFLAGS+=' -ffat-lto-objects'
+  cmake -S "$startdir/.." -B build \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}
