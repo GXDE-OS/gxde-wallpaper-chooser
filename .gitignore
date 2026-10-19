@@ -3,3 +3,6 @@ build-asan/
 CLAUDE.md
 docs/
 .cache/*
+arch/src/
+arch/pkg/
+arch/*.pkg.tar.*
