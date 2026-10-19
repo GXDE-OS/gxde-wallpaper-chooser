@@ -4,7 +4,7 @@
  * 职责：
  *  - List("background") 拿全部壁纸（JSON），失败时由调用方走本地扫描回退
  *  - Set("background", uri) 应用单张壁纸（daemon 会自动把自定义图片
- *    Prepare 进壁纸库）
+ *    Prepare 进壁纸库）；Wayland 会话改为直接写 gsettings background-uris
  *  - WallpaperSlideShow 属性读写（轮播策略："" 关闭 / 秒数 / login / wakeup）
  *  - 订阅 Changed 信号感知外部壁纸变更
  *

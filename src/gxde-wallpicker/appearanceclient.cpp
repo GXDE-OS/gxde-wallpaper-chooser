@@ -9,8 +9,9 @@
 #include <QDBusReply>
 #include <QDBusVariant>
 #include <QDebug>
-#include <QGuiApplication>
 #include <QGSettings>
+
+#include <dapplication.h>
 
 namespace GxdeWallpaper {
 
@@ -18,11 +19,43 @@ static const char *kService = "com.deepin.daemon.Appearance";
 static const char *kPath = "/com/deepin/daemon/Appearance";
 static const char *kIface = "com.deepin.daemon.Appearance";
 static const char *kPropsIface = "org.freedesktop.DBus.Properties";
+static const char *kAppearanceSchema = "com.deepin.dde.appearance";
 static const int kTimeoutMs = 3000;
 
+// Check whether this is a wayland session.
 static bool isWaylandSession()
 {
-    return QGuiApplication::platformName().contains(QLatin1String("wayland"));
+    return Dtk::Widget::DApplication::isWayland();
+}
+
+// Get GSettings background-uris.
+static QStringList backgroundUris()
+{
+    if (!QGSettings::isSchemaInstalled(kAppearanceSchema)) {
+        return QStringList();
+    }
+
+    QGSettings gs(kAppearanceSchema);
+    return gs.get("background-uris").toStringList();
+}
+
+// Write background file location to background uri.
+static bool writeBackgroundUris(const QString &uri)
+{
+    if (!QGSettings::isSchemaInstalled(kAppearanceSchema)) {
+        return false;
+    }
+
+    QGSettings gs(kAppearanceSchema);
+    QStringList uris = gs.get("background-uris").toStringList();
+    if (uris.isEmpty()) {
+        uris << uri;
+    } else {
+        uris[0] = uri;
+    }
+
+    gs.set("background-uris", uris);
+    return true;
 }
 
 static QDBusMessage propCall(const QString &method, const QString &name,
@@ -95,6 +128,18 @@ void AppearanceClient::onListFinished()
 
 void AppearanceClient::applyWallpaper(const QString &uri)
 {
+    // Write directly to GSettings schema under Wayland session.
+    if (isWaylandSession()) {
+        if (writeBackgroundUris(uri)) {
+            emit wallpaperChanged(uri);
+        } else {
+            emit applyFailed(QStringLiteral("Missing GSettings schema %1")
+                .arg(QLatin1String(kAppearanceSchema)));
+        }
+
+        return;
+    }
+
     QDBusMessage msg = QDBusMessage::createMethodCall(
         QLatin1String(kService), QLatin1String(kPath), QLatin1String(kIface),
         QStringLiteral("Set"));
@@ -119,22 +164,6 @@ void AppearanceClient::onApplyFinished()
         return;
     }
 
-    // D-Bus 失败时的会话级回退：镜像 gxde-file-manager fileutils.cpp 的
-    // Wayland 路径——直接写 background-uris（首个位置，与现网行为一致）。
-    // X11 下该键仅在 wm D-Bus 不可用时才被桌面读取，写了也不生效，
-    // 因此只在 Wayland 会话回退，其余情况如实报错。
-    if (isWaylandSession() && QGSettings::isSchemaInstalled("com.deepin.dde.appearance")) {
-        QGSettings gs("com.deepin.dde.appearance");
-        QStringList uris = gs.get("background-uris").toStringList();
-        if (uris.isEmpty())
-            uris << m_pendingApplyUri;
-        else
-            uris[0] = m_pendingApplyUri;
-        gs.set("background-uris", uris);
-        emit wallpaperChanged(m_pendingApplyUri);
-        return;
-    }
-
     qWarning() << "apply wallpaper failed:" << watcher->error().message();
     emit applyFailed(watcher->error().message());
 }
@@ -146,6 +175,10 @@ QString AppearanceClient::slideshowPolicy() const
 
 QString AppearanceClient::currentWallpaper() const
 {
+    if (isWaylandSession()) {
+        return backgroundUris().value(0);
+    }
+
     return readProperty(QStringLiteral("Background"));
 }
 
@@ -208,8 +241,9 @@ void AppearanceClient::writeProperty(const QString &name, const QString &value)
 
 void AppearanceClient::onDbusChanged(const QString &type, const QString &value)
 {
-    if (type == QLatin1String("background"))
-        emit wallpaperChanged(value);
+    if (type == QLatin1String("background")) {
+        emit wallpaperChanged(value.section(QLatin1Char(';'), 0, 0));
+    }
 }
 
 } // namespace GxdeWallpaper
