@@ -9,6 +9,7 @@
 #include <QDBusReply>
 #include <QDBusVariant>
 #include <QDebug>
+#include <QGSettings>
 
 namespace GxdeWallpaper {
 
@@ -17,6 +18,25 @@ static const char *kSsPath = "/com/deepin/ScreenSaver";
 static const char *kSsIface = "com.deepin.ScreenSaver";
 static const char *kSsPropsIface = "org.freedesktop.DBus.Properties";
 static const int kSsTimeoutMs = 3000;
+
+/*
+ * 等待时长的权威读写路径分两种栈：
+ * - GXDE（v20 风格会话栈）：dde-session-daemon 电源模块消费 gsettings
+ *   com.deepin.dde.power {line-power,battery}-screensaver-delay，
+ *   据此设置 org.freedesktop.ScreenSaver 的 X 空闲超时，空闲后回调
+ *   com.deepin.ScreenSaver.Start() 启动屏保。
+ * - 上游 deepin v23+：com.deepin.ScreenSaver 的 *ScreenSaverTimeout
+ *   转发到 org.deepin.dde.Power1。GXDE 无此服务（只有旧名
+ *   com.deepin.daemon.Power），写被静默丢弃、读恒为 fallback 0，
+ *   故不能以该属性为准。
+ * 以「com.deepin.dde.power schema 是否安装」区分两种栈。
+ */
+static const char *kPowerSchema = "com.deepin.dde.power";
+
+static bool powerDelaySchemaInstalled()
+{
+    return QGSettings::isSchemaInstalled(kPowerSchema);
+}
 
 ScreensaverClient::ScreensaverClient(QObject *parent)
     : QObject(parent)
@@ -70,6 +90,9 @@ QString ScreensaverClient::currentScreensaver() const
 
 int ScreensaverClient::waitTimeout() const
 {
+    if (powerDelaySchemaInstalled())
+        return QGSettings(kPowerSchema)
+            .get(QStringLiteral("line-power-screensaver-delay")).toInt();
     return getProp(QStringLiteral("linePowerScreenSaverTimeout")).toInt();
 }
 
@@ -123,7 +146,14 @@ void ScreensaverClient::setCurrentScreensaver(const QString &name)
 
 void ScreensaverClient::setWaitTimeout(int seconds)
 {
-    // 与旧实现一致：电池/接电两条超时同时写
+    // GXDE 生效路径：电源模块监听这两个键（接电/电池都写，与旧实现一致），
+    // 变更即时反映为 X 空闲超时
+    if (powerDelaySchemaInstalled()) {
+        QGSettings gs(kPowerSchema);
+        gs.set(QStringLiteral("line-power-screensaver-delay"), seconds);
+        gs.set(QStringLiteral("battery-screensaver-delay"), seconds);
+    }
+    // 上游 deepin v23+ 兼容：转发到 org.deepin.dde.Power1
     setPropAsync(QStringLiteral("batteryScreenSaverTimeout"), seconds);
     setPropAsync(QStringLiteral("linePowerScreenSaverTimeout"), seconds);
 }

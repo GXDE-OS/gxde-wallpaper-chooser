@@ -35,7 +35,8 @@ public:
     bool lockOnWakeup() const;
 
     void setCurrentScreensaver(const QString &name);
-    void setWaitTimeout(int seconds); // 同时写 battery/linePower，与旧实现一致
+    void setWaitTimeout(int seconds); // 同时写 battery/linePower，与旧实现一致；
+                                      // GXDE 上权威路径是 com.deepin.dde.power gsettings
     void setLockOnWakeup(bool on);
 
 signals:

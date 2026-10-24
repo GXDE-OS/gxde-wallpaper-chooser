@@ -32,6 +32,12 @@ cmake --build build -j$(nproc)
   （源码实证无子集 API），故 Win7 的多选/复选框/无序播放未实现——单击即应用是等价语义。
 - **屏保**：`com.deepin.ScreenSaver`（可激活服务，直接方法调用触发激活，不可用
   `isServiceRegistered` 预检）。等待时长同时写 battery/linePower，与旧实现一致。
+  GXDE 会话栈上该服务会把超时属性转发给 `org.deepin.dde.Power1`——此服务在 GXDE
+  不存在（只有旧名 `com.deepin.daemon.Power`），写入被静默丢弃、读取恒为 0。
+  因此等待时长的权威路径是 gsettings `com.deepin.dde.power
+  {line-power,battery}-screensaver-delay`（schema 存在时优先走它）：dde-session-daemon
+  电源模块据此设置 X 空闲超时，空闲到期经 `HandleIdleOn` → `com.deepin.ScreenSaver.Start()`
+  启动屏保；schema 不存在（上游 deepin v23+）则回退 D-Bus 属性。
 - **取消**：恢复打开窗口时的快照（壁纸/显示方式/轮播/屏保状态）；保存修改即关闭。
 
 ## 控制中心集成（向左弹出）

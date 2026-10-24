@@ -101,6 +101,11 @@ void ScreensaverPage::reload()
     m_itemsByName.clear();
     m_coverPaths.clear();
     m_screensaver->fetchScreensavers();
+
+    // 等待时长下拉框对齐当前生效值（GXDE 上经 gsettings 回退读取）
+    const int idx = m_waitCombo->findData(m_screensaver->waitTimeout());
+    if (idx >= 0)
+        m_waitCombo->setCurrentIndex(idx);
 }
 
 void ScreensaverPage::restoreState(const QString &current, int waitSeconds,
