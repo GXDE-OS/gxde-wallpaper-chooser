@@ -63,7 +63,7 @@ void ScreensaverClient::setPropAsync(const QString &name, const QVariant &value)
         QLatin1String(kSsService), QLatin1String(kSsPath),
         QLatin1String(kSsPropsIface), QStringLiteral("Set"));
     msg << QLatin1String(kSsIface) << name
-        << QVariant::fromValue(QVariant(value)); // 嵌套 QVariant → 签名 'v'
+        << QVariant::fromValue(QDBusVariant(value)); // D-Bus variant → 签名 'ssv'
 
     auto *watcher = new QDBusPendingCallWatcher(
         QDBusConnection::sessionBus().asyncCall(msg, kSsTimeoutMs),
