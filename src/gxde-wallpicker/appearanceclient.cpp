@@ -68,7 +68,7 @@ static QDBusMessage propCall(const QString &method, const QString &name,
         QLatin1String(kPropsIface), method);
     msg << QLatin1String(kIface) << name;
     if (method == QLatin1String("Set"))
-        msg << QVariant::fromValue(QVariant(value)); // 嵌套 QVariant → 签名 'v'
+        msg << QVariant::fromValue(QDBusVariant(value)); // D-Bus variant → 签名 'ssv'
     return msg;
 }
 
@@ -216,6 +216,12 @@ void AppearanceClient::onApplyFinished()
 
 QString AppearanceClient::slideshowPolicy() const
 {
+    // GXDE：daemon 的 WallpaperSlideShow 属性恒为空（见 setSlideshowPolicy
+    // 注释），权威读取走 gsettings；无 schema 的栈回退 D-Bus 属性
+    if (QGSettings::isSchemaInstalled(kAppearanceSchema)) {
+        QGSettings gs(kAppearanceSchema);
+        return gs.get(QStringLiteral("wallpaper-slideshow")).toString();
+    }
     return readProperty(QStringLiteral("WallpaperSlideShow"));
 }
 
@@ -230,8 +236,26 @@ QString AppearanceClient::currentWallpaper() const
 
 void AppearanceClient::setSlideshowPolicy(const QString &policy)
 {
-    // 优先走 D-Bus 属性写（daemon 内部绑定到 gsettings 并重启轮播调度器）；
-    // 服务挂掉时直接写 gsettings 兜底，键名已在本机验证存在。
+    /*
+     * GXDE 实测：daemon 的 WallpaperSlideShow 属性 Set 成功返回但不存储、
+     * 不同步 gsettings（轮播调度器只读 gsettings 键）——D-Bus 写是死路。
+     * 因此 schema 存在时直接写 gsettings（权威路径），D-Bus 属性写仅作
+     * 真实 deepin 兼容；schema 不存在时才以 D-Bus 结果决定成败并回退。
+     */
+    if (QGSettings::isSchemaInstalled(kAppearanceSchema)) {
+        QGSettings gs(kAppearanceSchema);
+        gs.set(QStringLiteral("wallpaper-slideshow"), policy);
+        emit slideshowChanged(policy);
+
+        if (available())
+            QDBusConnection::sessionBus().asyncCall(
+                propCall(QStringLiteral("Set"),
+                         QStringLiteral("WallpaperSlideShow"), policy),
+                kTimeoutMs);
+        return;
+    }
+
+    // 无 schema 的栈：D-Bus 写优先，失败回退 gsettings
     if (available()) {
         auto *watcher = new QDBusPendingCallWatcher(
             QDBusConnection::sessionBus().asyncCall(
@@ -246,22 +270,9 @@ void AppearanceClient::setSlideshowPolicy(const QString &policy)
                         emit slideshowChanged(policy);
                         return;
                     }
-                    if (QGSettings::isSchemaInstalled("com.deepin.dde.appearance")) {
-                        QGSettings gs("com.deepin.dde.appearance");
-                        gs.set("wallpaper-slideshow", policy);
-                        emit slideshowChanged(policy);
-                    } else {
-                        qWarning() << "set slideshow failed:"
-                                   << w->error().message();
-                    }
+                    qWarning() << "set slideshow failed:"
+                               << w->error().message();
                 });
-        return;
-    }
-
-    if (QGSettings::isSchemaInstalled("com.deepin.dde.appearance")) {
-        QGSettings gs("com.deepin.dde.appearance");
-        gs.set("wallpaper-slideshow", policy);
-        emit slideshowChanged(policy);
     }
 }
 
