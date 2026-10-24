@@ -108,16 +108,26 @@ void ScreensaverPage::reload()
     m_coverPaths.clear();
     m_screensaver->fetchScreensavers();
 
-    // 等待时长下拉框对齐当前生效值（GXDE 上经 gsettings 回退读取）
+    // 等待时长/唤醒密码对齐当前生效值（GXDE 上经 gsettings 回退读取）
     const int idx = m_waitCombo->findData(m_screensaver->waitTimeout());
     if (idx >= 0)
         m_waitCombo->setCurrentIndex(idx);
+    {
+        const QSignalBlocker blocker(m_lockCheck);
+        m_lockCheck->setChecked(m_screensaver->lockOnWakeup());
+    }
+}
+
+void ScreensaverPage::setCurrentItem(const QString &name)
+{
+    for (auto it = m_itemsByName.constBegin(); it != m_itemsByName.constEnd(); ++it)
+        m_itemsByName.value(it.key())->setCurrent(it.key() == name);
 }
 
 void ScreensaverPage::restoreState(const QString &current, int waitSeconds,
                                    bool lockOnWakeup)
 {
-    Q_UNUSED(current);
+    setCurrentItem(current);
     int idx = m_waitCombo->findData(waitSeconds);
     if (idx >= 0)
         m_waitCombo->setCurrentIndex(idx);
@@ -139,6 +149,7 @@ void ScreensaverPage::populateGrid(const QStringList &names)
             [this](const QString &path) {
                 // path 即屏保名（构造时以名字作 path）
                 m_screensaver->setCurrentScreensaver(path);
+                setCurrentItem(path); // 乐观高亮，与壁纸页一致
                 emit screensaverApplied(path);
             });
 
@@ -149,6 +160,8 @@ void ScreensaverPage::populateGrid(const QStringList &names)
         m_grid->addItem(item);
         m_screensaver->fetchCover(name);
     }
+    // 初始高亮对齐 daemon 当前值
+    setCurrentItem(m_screensaver->currentScreensaver());
 
     m_scrollLayout->insertWidget(0, m_grid);
 }

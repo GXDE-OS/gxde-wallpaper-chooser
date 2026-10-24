@@ -46,6 +46,7 @@ private slots:
     void onThumbnailReady(const QString &path, const QPixmap &pixmap);
 
 private:
+    void setCurrentItem(const QString &name);
     ScreensaverClient *m_screensaver;
     ThumbnailProvider *m_thumbnails;
 
