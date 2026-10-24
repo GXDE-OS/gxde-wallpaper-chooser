@@ -2,6 +2,7 @@
 
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
+#include <QDBusError>
 #include <QDBusInterface>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
@@ -136,6 +137,45 @@ void ScreensaverClient::fetchCover(const QString &name)
                         cover = reply.value();
                 }
                 emit coverReady(name, cover);
+            });
+}
+
+void ScreensaverClient::startPreview()
+{
+    // 不用 Start()：那是真实激活（任意输入即退出，还会启动唤醒锁屏计时）；
+    // 预览应容忍鼠标移动，与控制中心的预览语义一致
+    const QString name = currentScreensaver();
+    if (name.isEmpty()) {
+        emit failed(QStringLiteral("Preview"), QStringLiteral("当前没有可选屏保"));
+        return;
+    }
+    callPreview(name, false);
+}
+
+void ScreensaverClient::callPreview(const QString &name, bool threeArg)
+{
+    // GXDE 的 deepin-screensaver 6.5.12 为双参签名 Preview(name, staysOn)
+    //（内部固定预览模式）；上游 deepin v23+ 为三参 Preview(name, staysOn, preview)。
+    // 先按 GXDE 发，签名不符再回退三参。
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QLatin1String(kSsService), QLatin1String(kSsPath), QLatin1String(kSsIface),
+        QStringLiteral("Preview"));
+    msg << name << 1; // staysOn=1：全屏置顶
+    if (threeArg)
+        msg << true;
+    auto *watcher = new QDBusPendingCallWatcher(
+        QDBusConnection::sessionBus().asyncCall(msg, kSsTimeoutMs), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, name, threeArg](QDBusPendingCallWatcher *w) {
+                w->deleteLater();
+                if (!w->error().isValid())
+                    return;
+                if (!threeArg && (w->error().type() == QDBusError::UnknownMethod
+                                  || w->error().type() == QDBusError::InvalidArgs)) {
+                    callPreview(name, true);
+                    return;
+                }
+                emit failed(QStringLiteral("Preview"), w->error().message());
             });
 }
 

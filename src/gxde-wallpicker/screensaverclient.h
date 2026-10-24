@@ -28,6 +28,9 @@ public:
     void fetchState();
     // 某屏保封面图路径（GetScreenSaverCover）
     void fetchCover(const QString &name);
+    // 预览当前屏保（全屏置顶；GXDE 上鼠标移动不退出，点击/按键退出，
+    // 不触发唤醒锁屏计时）
+    void startPreview();
 
     // 当前值的同步快照（初始化/取消恢复用；均带 3s 超时防挂起）
     QString currentScreensaver() const;
@@ -51,6 +54,7 @@ signals:
 private:
     QVariant getProp(const QString &name) const;
     void setPropAsync(const QString &name, const QVariant &value);
+    void callPreview(const QString &name, bool threeArg);
 };
 
 } // namespace GxdeWallpaper

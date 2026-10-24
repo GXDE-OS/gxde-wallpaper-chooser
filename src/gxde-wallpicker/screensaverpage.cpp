@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
 
@@ -65,14 +66,19 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
     m_scroll->setWidget(m_scrollContent);
     layout->addWidget(m_scroll, 1);
 
-    // 底部：等待时长 + 唤醒密码
+    // 底部：预览 + 等待时长 + 唤醒密码（Win7 顺序：预览在等待之前）
     auto *optionsRow = new QHBoxLayout;
     optionsRow->setSpacing(8);
+    auto *previewBtn = new QPushButton(tr("预览(P)"), this);
+    previewBtn->setToolTip(tr("全屏预览当前屏保，点击或按键退出"));
+    connect(previewBtn, &QPushButton::clicked, this,
+            [this] { m_screensaver->startPreview(); });
     auto *waitLabel = new QLabel(tr("等待(W):"), this);
     m_waitCombo = new QComboBox(this);
     for (const auto &w : kWaits)
         m_waitCombo->addItem(QString::fromUtf8(w.label), w.seconds);
     m_lockCheck = new QCheckBox(tr("唤醒时需要密码"), this);
+    optionsRow->addWidget(previewBtn);
     optionsRow->addWidget(waitLabel);
     optionsRow->addWidget(m_waitCombo);
     optionsRow->addSpacing(24);
