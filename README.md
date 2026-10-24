@@ -23,8 +23,13 @@ cmake --build build -j$(nproc)
 
 ## 功能与底层契约
 
-- **单击缩略图立即应用**：`com.deepin.daemon.Appearance.Set("background", uri)`，
-  daemon 自动把自定义图片 Prepare 进壁纸库；实际生效经 `com.deepin.wm` 当前工作区背景验证。
+- **单击缩略图立即应用**：GXDE X11 上 `com.deepin.daemon.Appearance.Set` 是
+  静默 no-op（内部经 `com.deepin.wm` 桥生效，GXDE 的 WM 是 KWin，桥不处理），
+  实测生效契约是：写 gsettings `com.deepin.wrap.gnome.desktop.background
+  picture-uri`（daemon 自动联动 `background-uris[0]`）+ 广播
+  `Appearance.Changed("background", uri)` 信号驱动桌面面板即时重载。
+  daemon Set 仍保留作真实 deepin 兼容；实际生效经 `com.deepin.wm` 当前
+  工作区背景验证（仅 Wayland/真实 deepin 栈）。
 - **图片位置(P)**：写 `~/.config/GXDE/dde-file-manager/wallpaperDisplayMethod`（桌面面板
   fileWatcher 即时刷新）+ `picture-options` gsettings 双写。
 - **更改图片时间间隔(N)**：`WallpaperSlideShow` 属性（`""`/秒数/`login`/`wakeup`），

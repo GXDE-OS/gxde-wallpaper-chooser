@@ -20,6 +20,8 @@ static const char *kPath = "/com/deepin/daemon/Appearance";
 static const char *kIface = "com.deepin.daemon.Appearance";
 static const char *kPropsIface = "org.freedesktop.DBus.Properties";
 static const char *kAppearanceSchema = "com.deepin.dde.appearance";
+// 桌面面板重载壁纸时读取的持久化键所在 schema（GXDE X11 生效路径）
+static const char *kWrapBgSchema = "com.deepin.wrap.gnome.desktop.background";
 static const int kTimeoutMs = 3000;
 
 // Check whether this is a wayland session.
@@ -126,6 +128,29 @@ void AppearanceClient::onListFinished()
     emit wallpapersReady(reply.value());
 }
 
+// 写 picture-uri（GXDE X11 的持久化生效键；daemon 会自动联动
+// background-uris[0]）。返回是否写入。
+static bool writePictureUri(const QString &uri)
+{
+    if (!QGSettings::isSchemaInstalled(kWrapBgSchema))
+        return false;
+    QGSettings gs(kWrapBgSchema);
+    gs.set(QStringLiteral("picture-uri"), uri);
+    return true;
+}
+
+// 广播 Appearance.Changed：GXDE 桌面面板仅在收到该信号时立即重载壁纸。
+// 守护进程自己的信号在 GXDE 上不可依赖（见 applyWallpaper 注释），
+// 由本应用以同名信号补发（会话总线广播信号无发送方限制，已实测生效）。
+static void sendAppearanceChanged(const QString &uri)
+{
+    QDBusMessage sig = QDBusMessage::createSignal(
+        QLatin1String(kPath), QLatin1String(kIface),
+        QStringLiteral("Changed"));
+    sig << QStringLiteral("background") << uri;
+    QDBusConnection::sessionBus().send(sig);
+}
+
 void AppearanceClient::applyWallpaper(const QString &uri)
 {
     // Write directly to GSettings schema under Wayland session.
@@ -140,12 +165,33 @@ void AppearanceClient::applyWallpaper(const QString &uri)
         return;
     }
 
+    /*
+     * GXDE X11 实测契约：daemon 的 Set 内部经 com.deepin.wm 桥生效，
+     * 而 GXDE 的 WM 是 KWin、桥为静默 no-op——Set 成功返回但桌面不变。
+     * 生效路径是：
+     *   1) gsettings picture-uri 持久化；
+     *   2) 广播 Changed 信号驱动桌面面板立即重载。
+     * daemon Set 仍保留：真实 deepin 上是正规应用路径（含自定义图片
+     * Prepare 进库的副作用），GXDE 上为无害 no-op。gsettings 已写成功时，
+     * daemon Set 的结果不再决定成败信号，避免 GXDE 上误报失败 toast。
+     */
+    const bool wrotePictureUri = writePictureUri(uri);
+    if (wrotePictureUri) {
+        emit wallpaperChanged(uri);
+        sendAppearanceChanged(uri);
+    }
+
     QDBusMessage msg = QDBusMessage::createMethodCall(
         QLatin1String(kService), QLatin1String(kPath), QLatin1String(kIface),
         QStringLiteral("Set"));
     msg << QStringLiteral("background") << uri;
-    m_pendingApplyUri = uri;
 
+    if (wrotePictureUri) {
+        QDBusConnection::sessionBus().asyncCall(msg, kTimeoutMs);
+        return;
+    }
+
+    m_pendingApplyUri = uri;
     auto *watcher = new QDBusPendingCallWatcher(
         QDBusConnection::sessionBus().asyncCall(msg, kTimeoutMs), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
