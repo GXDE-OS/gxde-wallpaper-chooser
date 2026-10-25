@@ -13,6 +13,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QScreen>
+#include <QTimer>
 
 int main(int argc, char *argv[])
 {
@@ -36,14 +37,17 @@ int main(int argc, char *argv[])
 
     window.show();
 
-    // 启动时居中于光标所在显示器（先 show 再取 frameGeometry，
-    // 才能拿到含标题栏的真实外框；availableGeometry 已扣除任务栏）
-    const QScreen *screen = QGuiApplication::screenAt(QCursor::pos());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
-    if (screen)
-        window.move(screen->availableGeometry().center()
-                    - window.frameGeometry().center());
+    // 启动时居中于光标所在显示器（availableGeometry 已扣除任务栏）。
+    // 延迟到事件循环首轮：show() 后 DTK 的真实外框尺寸未必已定稿，
+    // 立即取 frameGeometry 会拿到初始尺寸导致偏移
+    QTimer::singleShot(0, &window, [&window] {
+        const QScreen *screen = QGuiApplication::screenAt(QCursor::pos());
+        if (!screen)
+            screen = QGuiApplication::primaryScreen();
+        if (screen)
+            window.move(screen->availableGeometry().center()
+                        - window.frameGeometry().center());
+    });
 
     picker->activate();
     return app.exec();
