@@ -10,6 +10,8 @@ obj-x86_64-linux-gnu/
 debian/.debhelper/
 debian/tmp/
 debian/gxde-wallpaper/
+debian/gxde-wallpaper-chooser/
+debian/gxde-wallpaper-dbgsym/
 debian/libgxde-wallpicker-dev/
 debian/files
 debian/*.substvars

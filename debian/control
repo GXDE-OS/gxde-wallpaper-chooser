@@ -1,4 +1,4 @@
-Source: gxde-wallpaper
+Source: gxde-wallpaper-chooser
 Section: x11
 Priority: optional
 Maintainer: momen <vmomenv@gmail.com>
@@ -12,9 +12,12 @@ Build-Depends:
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
 
-Package: gxde-wallpaper
+Package: gxde-wallpaper-chooser
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
+Provides: gxde-wallpaper
+Breaks: gxde-wallpaper (<< 0.1.0-2)
+Replaces: gxde-wallpaper (<< 0.1.0-2)
 Description: GXDE 壁纸与屏保选择器（Win7 风格）
  独立窗口的壁纸/屏保选择器，桌面右键「壁纸与屏保」入口或直接启动；
  单击缩略图立即生效。
