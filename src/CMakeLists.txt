@@ -1,5 +1,5 @@
 # gxde-wallpicker：可嵌入的壁纸/屏保选择器控件库
-# gxde-wallpaper ：独立窗口可执行（桌面右键入口 / 独立启动）
+# gxde-wallpaper-chooser ：独立窗口可执行（桌面右键入口 / 独立启动）
 # 控制中心集成方式见仓库 README。
 
 set(WALLPICKER_SOURCES
@@ -44,13 +44,13 @@ target_link_libraries(gxde-wallpicker
         PkgConfig::GSETTINGSQT6
 )
 
-add_executable(gxde-wallpaper
+add_executable(gxde-wallpaper-chooser
     app/main.cpp
 )
 
-target_link_libraries(gxde-wallpaper PRIVATE gxde-wallpicker)
+target_link_libraries(gxde-wallpaper-chooser PRIVATE gxde-wallpicker)
 
-install(TARGETS gxde-wallpicker gxde-wallpaper
+install(TARGETS gxde-wallpicker gxde-wallpaper-chooser
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
 )

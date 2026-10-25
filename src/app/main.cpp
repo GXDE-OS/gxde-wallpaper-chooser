@@ -1,5 +1,5 @@
 /*
- * gxde-wallpaper 独立窗口入口。
+ * gxde-wallpaper-chooser 独立窗口入口。
  *
  * 与旧 gxde-wallpaper-chooser-wayland 的分工：
  *  本程序 = 新实现（Win7 风格），控件本体在 libgxde-wallpicker，
@@ -15,7 +15,7 @@
 int main(int argc, char *argv[])
 {
     Dtk::Widget::DApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("gxde-wallpaper"));
+    app.setApplicationName(QStringLiteral("gxde-wallpaper-chooser"));
     app.setApplicationDisplayName(QObject::tr("壁纸与屏保"));
     app.setOrganizationName(QStringLiteral("GXDE"));
 

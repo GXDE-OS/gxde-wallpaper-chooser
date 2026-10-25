@@ -1,4 +1,4 @@
-# gxde-wallpaper
+# gxde-wallpaper-chooser
 
 GXDE 壁纸与屏保选择器——旧 `gxde-wallpaper-chooser-wayland`（`gxde-file-manager/gxde-wallpaper-chooser`）的重写，
 窗口布局参照 Windows 7「选择桌面背景」设计稿。
@@ -11,14 +11,14 @@ GXDE 壁纸与屏保选择器——旧 `gxde-wallpaper-chooser-wayland`（`gxde-
 sudo apt install cmake qt6-base-dev libdtk2widget6-dev libgsettings-qt6-dev
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
-./build/src/gxde-wallpaper
+./build/src/gxde-wallpaper-chooser
 ```
 
 ## 产物
 
 | 产物 | 说明 |
 |---|---|
-| `build/src/gxde-wallpaper` | 独立窗口（桌面右键「壁纸与屏保」入口 / 直接启动） |
+| `build/src/gxde-wallpaper-chooser` | 独立窗口（桌面右键「壁纸与屏保」入口 / 直接启动） |
 | `build/src/libgxde-wallpicker.a` | 可嵌入控件库，供控制中心复用 |
 
 ## 功能与底层契约
