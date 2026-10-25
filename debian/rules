@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+
+# src/CMakeLists.txt 的 install 目的地是字面量 lib/（未用 GNUInstallDirs），
+# Debian 的静态库需入多架构目录，故安装后归位
+override_dh_auto_install:
+	dh_auto_install
+	mkdir -p debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)
+	mv debian/tmp/usr/lib/libgxde-wallpicker.a \
+	   debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/
+
+%:
+	dh $@

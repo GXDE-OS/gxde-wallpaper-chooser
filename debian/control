@@ -1,0 +1,27 @@
+Source: gxde-wallpaper
+Section: x11
+Priority: optional
+Maintainer: momen <vmomenv@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake,
+ qt6-base-dev,
+ libdtk2widget6-dev,
+ libgsettings-qt6-dev,
+ pkg-config
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: gxde-wallpaper
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: GXDE 壁纸与屏保选择器（Win7 风格）
+ 独立窗口的壁纸/屏保选择器，桌面右键「壁纸与屏保」入口或直接启动；
+ 单击缩略图立即生效。
+
+Package: libgxde-wallpicker-dev
+Section: libdevel
+Architecture: any
+Depends: ${misc:Depends}
+Description: gxde-wallpicker 可嵌入控件库（开发文件）
+ 壁纸/屏保选择器控件本体（静态库 + 头文件），供 GXDE 控制中心复用。

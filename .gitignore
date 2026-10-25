@@ -6,3 +6,12 @@ docs/
 arch/src/
 arch/pkg/
 arch/*.pkg.tar.*
+obj-x86_64-linux-gnu/
+debian/.debhelper/
+debian/tmp/
+debian/gxde-wallpaper/
+debian/libgxde-wallpicker-dev/
+debian/files
+debian/*.substvars
+debian/debhelper-build-stamp
+debian/*.debhelper.log

@@ -1,0 +1,7 @@
+gxde-wallpaper (0.1.0-1) unstable; urgency=medium
+
+  * 首个 deb 包。
+  * fix: X11 下壁纸/屏保应用不生效（改走 GXDE 实测生效路径）。
+  * feat: 屏保页预览按钮；选中高亮与状态初始对齐。
+
+ -- momen <vmomenv@gmail.com>  Sat, 25 Oct 2026 00:40:00 +0800
