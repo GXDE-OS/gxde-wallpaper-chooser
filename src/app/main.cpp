@@ -11,6 +11,8 @@
 #include <dtitlebar.h>
 #include <dmainwindow.h>
 #include <QApplication>
+#include <QCursor>
+#include <QScreen>
 
 int main(int argc, char *argv[])
 {
@@ -33,6 +35,16 @@ int main(int argc, char *argv[])
                      &QWidget::close);
 
     window.show();
+
+    // 启动时居中于光标所在显示器（先 show 再取 frameGeometry，
+    // 才能拿到含标题栏的真实外框；availableGeometry 已扣除任务栏）
+    const QScreen *screen = QGuiApplication::screenAt(QCursor::pos());
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    if (screen)
+        window.move(screen->availableGeometry().center()
+                    - window.frameGeometry().center());
+
     picker->activate();
     return app.exec();
 }
