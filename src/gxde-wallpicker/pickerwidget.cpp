@@ -2,6 +2,7 @@
 
 #include "appearanceclient.h"
 #include "displaysettings.h"
+#include "dynamicwallpaperclient.h"
 #include "screensaverclient.h"
 #include "screensaverpage.h"
 #include "thumbnailprovider.h"
@@ -26,6 +27,7 @@ PickerWidget::PickerWidget(QWidget *parent)
     m_screensaver = new ScreensaverClient(this);
     m_displaySettings = new DisplaySettings(this);
     m_thumbnails = new ThumbnailProvider(this);
+    m_dynamicWallpapers = new DynamicWallpaperClient(this);
 
     buildUi();
 
@@ -47,6 +49,22 @@ PickerWidget::PickerWidget(QWidget *parent)
                             if (!visible)
                                 toast->deleteLater();
                         });
+            });
+
+    // 视频动态壁纸应用失败 → 提示并回读真实状态刷新高亮
+    connect(m_dynamicWallpapers, &DynamicWallpaperClient::applyFailed, this,
+            [this](const QString &path, const QString &reason) {
+                Q_UNUSED(path);
+                auto *toast = new Dtk::Widget::DToast(this);
+                toast->setText(tr("应用动态壁纸失败：%1").arg(reason));
+                toast->setDuration(3000);
+                toast->pop();
+                connect(toast, &Dtk::Widget::DToast::visibleChanged, toast,
+                        [toast](bool visible) {
+                            if (!visible)
+                                toast->deleteLater();
+                        });
+                m_dynamicWallpapers->fetchCurrentDynamicWallpaper();
             });
 }
 
@@ -72,7 +90,7 @@ void PickerWidget::buildUi()
 
     // 页面栈
     m_wallpaperPage = new WallpaperPage(m_appearance, m_displaySettings,
-                                        m_thumbnails, this);
+                                        m_thumbnails, m_dynamicWallpapers, this);
     m_screensaverPage = new ScreensaverPage(m_screensaver, m_thumbnails, this);
     m_pages = new QWidget(this);
     auto *stack = new QStackedLayout(m_pages);
@@ -123,6 +141,19 @@ void PickerWidget::takeSnapshot()
     m_snapshotWait = m_screensaver->waitTimeout();
     m_snapshotLock = m_screensaver->lockOnWakeup();
     m_hasSnapshot = true;
+
+    // 视频动态壁纸状态异步拉取，首个结果即快照
+    m_snapshotDynamicValid = false;
+    disconnect(m_dynamicSnapshotConn);
+    m_dynamicSnapshotConn = connect(
+        m_dynamicWallpapers, &DynamicWallpaperClient::currentReady, this,
+        [this](const QString &path) {
+            if (!m_snapshotDynamicValid) {
+                m_snapshotDynamic = path;
+                m_snapshotDynamicValid = true;
+            }
+        });
+    m_dynamicWallpapers->fetchCurrentDynamicWallpaper();
 }
 
 void PickerWidget::restoreSnapshot()
@@ -151,6 +182,10 @@ void PickerWidget::restoreSnapshot()
         m_screensaverPage->restoreState(m_snapshotSaver, m_snapshotWait,
                                          m_snapshotLock);
     }
+    // 视频动态壁纸：仅在快照已到位时恢复（用户打开后改过才动手）
+    if (m_snapshotDynamicValid
+            && m_dynamicWallpapers->lastKnownCurrent() != m_snapshotDynamic)
+        m_dynamicWallpapers->applyDynamicWallpaper(m_snapshotDynamic);
 }
 
 } // namespace GxdeWallpaper

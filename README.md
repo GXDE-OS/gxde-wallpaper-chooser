@@ -30,6 +30,12 @@ cmake --build build -j$(nproc)
   `Appearance.Changed("background", uri)` 信号驱动桌面面板即时重载。
   daemon Set 仍保留作真实 deepin 兼容；实际生效经 `com.deepin.wm` 当前
   工作区背景验证（仅 Wayland/真实 deepin 栈）。
+- **浏览选择文件与拖拽**：「浏览(B)...」为菜单按钮——「选择文件夹(F)...」扫描目录加入
+  来源（原有行为）；「选择图片或动态壁纸(P)...」选中单个文件后立即应用：图片按
+  daemon Prepare 契约拷入自定义壁纸库（md5 命名去重）再应用，重载后仍出现在
+  「自定义壁纸」；视频交桌面面板入库。窗口接受拖放：拖入图片/动态壁纸同样入库并
+  立即应用（多选取第一个可用的），拖入文件夹等同「浏览文件夹」，悬停时页面显示
+  提示遮罩，非图片/视频/文件夹内容光标显示禁止。
 - **图片位置(P)**：写 `~/.config/GXDE/dde-file-manager/wallpaperDisplayMethod`（桌面面板
   fileWatcher 即时刷新）+ `picture-options` gsettings 双写。
 - **更改图片时间间隔(N)**：`WallpaperSlideShow` 属性（`""`/秒数/`login`/`wakeup`），
@@ -43,7 +49,13 @@ cmake --build build -j$(nproc)
   {line-power,battery}-screensaver-delay`（schema 存在时优先走它）：dde-session-daemon
   电源模块据此设置 X 空闲超时，空闲到期经 `HandleIdleOn` → `com.deepin.ScreenSaver.Start()`
   启动屏保；schema 不存在（上游 deepin v23+）则回退 D-Bus 属性。
-- **取消**：恢复打开窗口时的快照（壁纸/显示方式/轮播/屏保状态）；保存修改即关闭。
+- **取消**：恢复打开窗口时的快照（壁纸/显示方式/轮播/屏保/动态壁纸状态）；保存修改即关闭。
+- **视频动态壁纸**：壁纸目录扫描同时收录视频（mp4/mkv/webm/avi 等，按内容 MIME 判断），
+  缩略图为 `QMediaPlayer` 抓取的首帧（8 秒超时/失败给播放三角占位图），卡片带播放角标。
+  单击即经桌面面板 `com.deepin.dde.desktop.SetDynamicWallpaper` 生效（面板负责拷贝入库、
+  持久化与循环播放；面板不可用时兜底写 `~/.config/GXDE/dde-file-manager/dynamicWallpaper`
+  恢复配置）。静态壁纸与动态壁纸互斥：单击静态图片会显式停用动态壁纸；
+  打开窗口时生效的视频动态壁纸会被高亮，取消时按快照恢复。
 
 ## 控制中心集成（向左弹出）
 

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets DBus Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets DBus Concurrent Multimedia)
 
 find_package(PkgConfig REQUIRED)
 # DTK2 widget 的 Qt6 移植；pc 文件由 libdtk2widget6-dev 提供

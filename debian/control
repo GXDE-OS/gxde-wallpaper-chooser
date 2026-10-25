@@ -6,6 +6,7 @@ Build-Depends:
  debhelper-compat (= 13),
  cmake,
  qt6-base-dev,
+ qt6-multimedia-dev,
  libdtk2widget6-dev,
  libgsettings-qt6-dev,
  pkg-config
@@ -20,7 +21,7 @@ Breaks: gxde-wallpaper (<< 0.1.0-2)
 Replaces: gxde-wallpaper (<< 0.1.0-2)
 Description: GXDE 壁纸与屏保选择器（Win7 风格）
  独立窗口的壁纸/屏保选择器，桌面右键「壁纸与屏保」入口或直接启动；
- 单击缩略图立即生效。
+ 单击缩略图立即生效，支持视频动态壁纸（经桌面面板 DBus 生效）。
 
 Package: libgxde-wallpicker-dev
 Section: libdevel

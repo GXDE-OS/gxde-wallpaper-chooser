@@ -2,21 +2,31 @@
 
 #include "appearanceclient.h"
 #include "displaysettings.h"
+#include "dynamicwallpaperclient.h"
 #include "groupsection.h"
 #include "thumbnailitem.h"
 #include "thumbnailprovider.h"
 
 #include <QComboBox>
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMap>
+#include <QMimeData>
+#include <QMenu>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QVBoxLayout>
+#include <QStandardPaths>
 #include <QUrl>
+#include <QVBoxLayout>
 
 namespace GxdeWallpaper {
 
@@ -52,16 +62,21 @@ static const struct {
 WallpaperPage::WallpaperPage(AppearanceClient *appearance,
                              DisplaySettings *displaySettings,
                              ThumbnailProvider *thumbnails,
+                             DynamicWallpaperClient *dynamicWallpapers,
                              QWidget *parent)
     : QWidget(parent)
     , m_appearance(appearance)
     , m_displaySettings(displaySettings)
     , m_thumbnails(thumbnails)
+    , m_dynamicWallpapers(dynamicWallpapers)
 {
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(24, 16, 24, 8);
     layout->setSpacing(8);
     m_rootLayout = layout;
+
+    // 接受图片/动态壁纸/文件夹拖入（子控件默认不收拖拽，事件上抛到此）
+    setAcceptDrops(true);
 
     buildChrome();
 
@@ -81,6 +96,25 @@ WallpaperPage::WallpaperPage(AppearanceClient *appearance,
             });
     connect(m_thumbnails, &ThumbnailProvider::thumbnailReady, this,
             &WallpaperPage::onThumbnailReady);
+
+    // 当前生效的视频动态壁纸 → 高亮对应卡片；面板重启恢复亦然
+    connect(m_dynamicWallpapers, &DynamicWallpaperClient::currentReady, this,
+            [this](const QString &path) {
+                m_currentDynamicPath = path;
+                // 动态壁纸生效时静态壁纸高亮清除，反之亦然
+                setCurrentWallpaper(path.isEmpty() ? m_currentUri : QString());
+                rebuildGroups();
+            });
+
+    // 静态壁纸被应用（含外部变更）时，面板会自动停用动态壁纸 → 清视频高亮
+    connect(m_appearance, &AppearanceClient::wallpaperChanged, this,
+            [this](const QString &uri) {
+                if (!m_currentDynamicPath.isEmpty()) {
+                    m_currentDynamicPath.clear();
+                    setCurrentWallpaper(uri);
+                    rebuildGroups();
+                }
+            });
 }
 
 void WallpaperPage::buildChrome()
@@ -167,29 +201,32 @@ void WallpaperPage::buildChrome()
         m_sourceFilter = m_sourceCombo->currentData().toString();
         rebuildGroups();
     });
-    connect(browseBtn, &QPushButton::clicked, this, [this] {
-        const QString dir = QFileDialog::getExistingDirectory(
-            this, tr("选择图片位置"), QStringLiteral("/usr/share/wallpapers"));
-        if (dir.isEmpty())
-            return;
-        const QString key = QStringLiteral("dir:") + dir;
-        const auto scanned = scanDirectory(dir);
-        if (scanned.isEmpty())
-            return;
-        m_entries = mergeEntries(m_entries, scanned);
-        populateSources();
-        m_sourceFilter = key;
-        int idx = m_sourceCombo->findData(key);
-        if (idx >= 0)
-            m_sourceCombo->setCurrentIndex(idx);
-        rebuildGroups();
-    });
+    // 浏览：文件夹（加入来源）或单个图片/动态壁纸（立即应用）
+    auto *browseMenu = new QMenu(browseBtn);
+    browseMenu->addAction(tr("选择文件夹(F)..."), this, &WallpaperPage::browseFolder);
+    browseMenu->addAction(tr("选择图片或动态壁纸(P)..."), this,
+                          &WallpaperPage::browseWallpaperFile);
+    browseBtn->setMenu(browseMenu);
+
+    // 拖拽悬停提示遮罩（对鼠标事件透明，拖拽事件继续落到本页）
+    m_dropOverlay = new QLabel(tr("松开以设置为壁纸"), this);
+    m_dropOverlay->setAlignment(Qt::AlignCenter);
+    m_dropOverlay->setStyleSheet(QStringLiteral(
+        "QLabel {"
+        " background: rgba(53, 132, 228, 0.15);"
+        " border: 2px dashed #3584e4;"
+        " border-radius: 8px;"
+        " color: #3584e4; font-size: 16px; font-weight: 500;"
+        "}"));
+    m_dropOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_dropOverlay->hide();
 }
 
 void WallpaperPage::reload()
 {
     m_thumbnails->invalidate();
     m_appearance->fetchWallpapers();
+    m_dynamicWallpapers->fetchCurrentDynamicWallpaper();
 }
 
 void WallpaperPage::setCurrentWallpaper(const QString &uri)
@@ -198,8 +235,17 @@ void WallpaperPage::setCurrentWallpaper(const QString &uri)
     const QString currentPath = QUrl(uri).isLocalFile() ? QUrl(uri).toLocalFile() : uri;
     for (GroupSection *group : m_groups) {
         const auto items = group->findChildren<ThumbnailItem *>();
-        for (ThumbnailItem *item : items)
-            item->setCurrent(item->path() == currentPath);
+        for (ThumbnailItem *item : items) {
+            // 静态壁纸与视频动态壁纸高亮互斥：视频生效时静态不高亮，
+            // uri 为空则两者都不高亮
+            const bool isDynamicCurrent =
+                !m_currentDynamicPath.isEmpty() && item->isVideo()
+                && item->path() == m_currentDynamicPath;
+            const bool isStaticCurrent =
+                m_currentDynamicPath.isEmpty() && !currentPath.isEmpty()
+                && item->path() == currentPath;
+            item->setCurrent(isDynamicCurrent || isStaticCurrent);
+        }
     }
 }
 
@@ -258,6 +304,7 @@ void WallpaperPage::rebuildGroups()
         for (const auto &entry : it.value()) {
             auto *item = new ThumbnailItem(entry.path, section);
             item->setCurrent(entry.path == currentPath);
+            item->setVideo(entry.isVideo);
             section->addItem(item);
             m_thumbnails->request(entry.path, QSize(156, 96));
         }
@@ -286,11 +333,169 @@ void WallpaperPage::onThumbnailReady(const QString &path, const QPixmap &pixmap)
 
 void WallpaperPage::applyWallpaper(const QString &path)
 {
+    // 视频条目 → 视频动态壁纸（走桌面面板 DBus，图片位置(P) 显示方式等
+    // 静态壁纸选项对它不适用）；面板侧同样会停用正在播放的其它静态配置
+    if (isVideoFile(path)) {
+        m_currentDynamicPath = path; // 乐观高亮
+        setCurrentWallpaper(QString());
+        m_dynamicWallpapers->applyDynamicWallpaper(path);
+        emit dynamicWallpaperApplied(path);
+        return;
+    }
+
+    // 静态壁纸与动态壁纸互斥：真实会话上 daemon 联动 backgroundUris 后
+    // 面板会自动停用动态壁纸，但 daemon 缺席的栈上不会——显式停用一次
+    // 保证行为一致（面板对空调用幂等，重复停用无害）
+    if (!m_currentDynamicPath.isEmpty()) {
+        m_currentDynamicPath.clear();
+        m_dynamicWallpapers->applyDynamicWallpaper(QString());
+    }
+
     const QString uri = QUrl::fromLocalFile(path).toString();
     m_appearance->applyWallpaper(uri);
     // 乐观高亮；失败信号到达时 PickerWidget 会刷新真实状态
     setCurrentWallpaper(uri);
     emit wallpaperApplied(uri);
+}
+
+void WallpaperPage::browseFolder()
+{
+    const QString dir = QFileDialog::getExistingDirectory(
+        this, tr("选择图片位置"), QStringLiteral("/usr/share/wallpapers"));
+    if (dir.isEmpty())
+        return;
+    addDirectorySource(dir);
+}
+
+void WallpaperPage::browseWallpaperFile()
+{
+    const QStringList images = imageNameFilters();
+    const QStringList videos = videoNameFilters();
+    const QString pictures =
+        QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    const QString file = QFileDialog::getOpenFileName(
+        this, tr("选择图片或动态壁纸"),
+        pictures.isEmpty() ? QDir::homePath() : pictures,
+        tr("图片与动态壁纸 (%1)").arg((images + videos).join(QLatin1Char(' ')))
+            + QLatin1String(";;")
+            + tr("图片 (%1)").arg(images.join(QLatin1Char(' ')))
+            + QLatin1String(";;")
+            + tr("动态壁纸 (%1)").arg(videos.join(QLatin1Char(' ')))
+            + QLatin1String(";;") + tr("所有文件 (*)"));
+    if (file.isEmpty())
+        return;
+    applyExternalWallpaper(file);
+}
+
+void WallpaperPage::addDirectorySource(const QString &dir)
+{
+    const QString key = QStringLiteral("dir:") + dir;
+    const auto scanned = scanDirectory(dir);
+    if (scanned.isEmpty())
+        return;
+    m_entries = mergeEntries(m_entries, scanned);
+    populateSources();
+    m_sourceFilter = key;
+    const int idx = m_sourceCombo->findData(key);
+    if (idx >= 0)
+        m_sourceCombo->setCurrentIndex(idx);
+    rebuildGroups();
+}
+
+void WallpaperPage::applyExternalWallpaper(const QString &pathOrUrl)
+{
+    QString path = localPathOf(pathOrUrl);
+    if (path.isEmpty() || !QFileInfo::exists(path))
+        return;
+    if (!isSupportedWallpaperFile(path)) {
+        QMessageBox::warning(this, tr("无法设置壁纸"),
+                             tr("“%1”不是可用的图片或动态壁纸文件。").arg(path));
+        return;
+    }
+
+    // 图片拷入自定义壁纸库（与 daemon 应用时 Prepare 入库的契约一致，
+    // 重新加载后仍出现在「自定义壁纸」；视频由桌面面板入库，条目记原始路径）
+    if (!isVideoFile(path)) {
+        const QString persisted = persistWallpaperToLibrary(path);
+        if (QFileInfo::exists(persisted))
+            path = persisted;
+    }
+
+    const WallpaperEntry entry = entryForFile(path);
+    bool exists = false;
+    for (const auto &e : m_entries) {
+        if (e.path == entry.path) {
+            exists = true;
+            break;
+        }
+    }
+    if (!exists) {
+        m_entries = mergeEntries(m_entries, QList<WallpaperEntry>{entry});
+        populateSources();
+    }
+
+    // 来源切到新条目所在分组，应用后卡片可见、高亮
+    m_sourceFilter = entry.sourceKey;
+    const int idx = m_sourceCombo->findData(entry.sourceKey);
+    if (idx >= 0)
+        m_sourceCombo->setCurrentIndex(idx);
+    rebuildGroups();
+
+    applyWallpaper(path);
+}
+
+// 拖入内容中第一个可处理的本地路径（图片/动态壁纸文件或文件夹）
+static QString firstDroppablePath(const QList<QUrl> &urls)
+{
+    for (const QUrl &url : urls) {
+        if (!url.isLocalFile())
+            continue;
+        const QString path = url.toLocalFile();
+        if (QFileInfo(path).isDir() || isSupportedWallpaperFile(path))
+            return path;
+    }
+    return QString();
+}
+
+void WallpaperPage::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (firstDroppablePath(event->mimeData()->urls()).isEmpty())
+        return; // 维持 ignore：光标显示禁止放置
+    event->acceptProposedAction();
+    showDropOverlay();
+}
+
+void WallpaperPage::dragMoveEvent(QDragMoveEvent *event)
+{
+    if (!firstDroppablePath(event->mimeData()->urls()).isEmpty())
+        event->acceptProposedAction();
+}
+
+void WallpaperPage::dragLeaveEvent(QDragLeaveEvent *event)
+{
+    Q_UNUSED(event);
+    m_dropOverlay->hide();
+}
+
+void WallpaperPage::dropEvent(QDropEvent *event)
+{
+    m_dropOverlay->hide();
+    const QString path = firstDroppablePath(event->mimeData()->urls());
+    if (path.isEmpty())
+        return;
+    event->acceptProposedAction();
+
+    if (QFileInfo(path).isDir())
+        addDirectorySource(path); // 文件夹：等同「浏览文件夹」
+    else
+        applyExternalWallpaper(path);
+}
+
+void WallpaperPage::showDropOverlay()
+{
+    m_dropOverlay->setGeometry(rect());
+    m_dropOverlay->raise();
+    m_dropOverlay->show();
 }
 
 } // namespace GxdeWallpaper

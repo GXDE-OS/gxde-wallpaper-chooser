@@ -7,6 +7,8 @@ set(WALLPICKER_SOURCES
     gxde-wallpicker/wallpaperentry.cpp
     gxde-wallpicker/appearanceclient.h
     gxde-wallpicker/appearanceclient.cpp
+    gxde-wallpicker/dynamicwallpaperclient.h
+    gxde-wallpicker/dynamicwallpaperclient.cpp
     gxde-wallpicker/screensaverclient.h
     gxde-wallpicker/screensaverclient.cpp
     gxde-wallpicker/displaysettings.h
@@ -40,6 +42,7 @@ target_link_libraries(gxde-wallpicker
         Qt6::Widgets
         Qt6::DBus
         Qt6::Concurrent
+        Qt6::Multimedia
         PkgConfig::DTK2WIDGET
         PkgConfig::GSETTINGSQT6
 )

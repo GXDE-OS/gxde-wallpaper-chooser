@@ -19,6 +19,7 @@ namespace GxdeWallpaper {
 
 class AppearanceClient;
 class DisplaySettings;
+class DynamicWallpaperClient;
 class ScreensaverClient;
 class ScreensaverPage;
 class ThumbnailProvider;
@@ -47,6 +48,7 @@ private:
     ScreensaverClient *m_screensaver = nullptr;
     DisplaySettings *m_displaySettings = nullptr;
     ThumbnailProvider *m_thumbnails = nullptr;
+    DynamicWallpaperClient *m_dynamicWallpapers = nullptr;
     WallpaperPage *m_wallpaperPage = nullptr;
     ScreensaverPage *m_screensaverPage = nullptr;
     Dtk::Widget::DSegmentedControl *m_modeSwitch = nullptr;
@@ -62,6 +64,10 @@ private:
     QString m_snapshotSaver;
     int m_snapshotWait = -1;
     bool m_snapshotLock = false;
+    // 视频动态壁纸快照（异步拉取，到位才参与取消恢复）
+    QString m_snapshotDynamic;
+    bool m_snapshotDynamicValid = false;
+    QMetaObject::Connection m_dynamicSnapshotConn;
 };
 
 } // namespace GxdeWallpaper

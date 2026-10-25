@@ -19,6 +19,8 @@ public:
     void setPixmap(const QPixmap &pixmap);
     void setCurrent(bool current); // 当前生效壁纸 → 蓝色描边
     bool isCurrent() const { return m_current; }
+    void setVideo(bool video);     // 视频动态壁纸 → 播放角标
+    bool isVideo() const { return m_video; }
 
 signals:
     void clicked(const QString &path);
@@ -35,6 +37,7 @@ private:
     QPixmap m_pixmap;
     bool m_current = false;
     bool m_hovered = false;
+    bool m_video = false;
 };
 
 } // namespace GxdeWallpaper

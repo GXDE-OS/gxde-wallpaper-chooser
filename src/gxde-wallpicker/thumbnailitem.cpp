@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPolygon>
 #include <QStyleOption>
 #include <QApplication>
 
@@ -33,6 +34,14 @@ void ThumbnailItem::setCurrent(bool current)
     if (m_current == current)
         return;
     m_current = current;
+    update();
+}
+
+void ThumbnailItem::setVideo(bool video)
+{
+    if (m_video == video)
+        return;
+    m_video = video;
     update();
 }
 
@@ -84,6 +93,22 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
         f.setPixelSize(11);
         p.setFont(f);
         p.drawText(badge, Qt::AlignCenter, QStringLiteral("✓"));
+    }
+
+    // 视频角标：左下角播放三角（动态壁纸提示）
+    if (m_video) {
+        const QRectF badge(r.left() + 4, r.bottom() - 22, 18, 18);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(0, 0, 0, 150));
+        p.drawEllipse(badge);
+
+        const QRectF b = badge.adjusted(1, 1, -1, -1);
+        QPolygonF triangle;
+        triangle << QPointF(b.left() + b.width() * 0.28, b.top() + b.height() * 0.18)
+                 << QPointF(b.left() + b.width() * 0.28, b.bottom() - b.height() * 0.18)
+                 << QPointF(b.right() - b.width() * 0.18, b.center().y());
+        p.setBrush(QColor(255, 255, 255, 230));
+        p.drawPolygon(triangle);
     }
 }
 
