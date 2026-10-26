@@ -2,12 +2,12 @@
 
 pkgname=gxde-wallpaper
 pkgver=0.1.0
-pkgrel=1
+pkgrel=4
 pkgdesc='GXDE wallpaper selecter.'
 arch=('x86_64' 'aarch64' 'loong64' 'riscv64')
 url='https://gitee.com/GXDE-OS/gxde-wallpaper-chooser'
-license=('unknown')
-depends=('qt6-base' 'dtk2widget-qt6' 'gsettings-qt6')
+license=('GPL-3.0-or-later')
+depends=('qt6-base' 'dtk2widget-qt6' 'gsettings-qt6' 'gxde-desktop-panel-git' 'gxde-control-center-git')
 makedepends=('cmake')
 source=()
 sha256sums=()
