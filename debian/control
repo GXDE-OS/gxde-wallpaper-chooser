@@ -15,7 +15,7 @@ Rules-Requires-Root: no
 
 Package: gxde-wallpaper-chooser
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}, gxde-desktop-panel, gxde-control-center
 Provides: gxde-wallpaper
 Breaks: gxde-wallpaper (<< 0.1.0-2)
 Replaces: gxde-wallpaper (<< 0.1.0-2)
