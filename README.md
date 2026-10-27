@@ -28,8 +28,8 @@ cmake --build build -j$(nproc)
   嵌入控制中心等没有 `DTitlebar` 的场景自动回落为控件内顶部页签。
 - **图标与桌面入口**：`data/gxde-wallpaper-chooser.svg` + 16–256px PNG 安装到
   hicolor 图标主题，`data/gxde-wallpaper-chooser.desktop` 安装到 applications
-  （含 `StartupWMClass`，Dock 能正确匹配运行中的窗口）；窗口内嵌同名 PNG
-  资源，从构建目录直接运行也能显示图标。
+  （含 `StartupWMClass`，Dock 能正确匹配运行中的窗口；`NoDisplay=true`
+  使其不出现在启动器中）；窗口内嵌同名 PNG 资源，从构建目录直接运行也能显示图标。
 - **自定义分类**：壁纸页「分类(C)...」新建/重命名/删除分类，右键任意壁纸加入或
   移出分类；来源下拉中出现「分类：X」过滤项，「全部壁纸」视图顶部显示分类分组。
   软件不内置任何分类，全部由用户创建。

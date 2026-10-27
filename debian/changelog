@@ -8,6 +8,7 @@ gxde-wallpaper-chooser (0.2.0) unstable; urgency=medium
   * 修复首屏缩略图需要悬停才显示的问题。
   * 修复高分屏下缩略图绘制尺寸偏小（预览图上下留空）的问题。
   * 安装 hicolor 多尺寸图标并添加 StartupWMClass，修复 Dock 缺图标。
+  * 桌面入口设置 NoDisplay=true，不在启动器中显示。
   * 移除空的「此位置没有可用的图片」占位提示。
   * 对话框改用 DTK DDialog/DInputDialog/DFileDialog；取消/保存按钮改为常规顺序。
 
