@@ -59,12 +59,23 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     p.fillRect(r, QColor(0, 0, 0, 40));
 
     if (!m_pixmap.isNull()) {
-        const QSize target = r.size().toSize();
-        const QPixmap scaled = m_pixmap.scaled(target, Qt::KeepAspectRatio,
-                                                Qt::SmoothTransformation);
-        const QPointF topLeft(r.left() + (r.width() - scaled.width()) / 2,
-                              r.top() + (r.height() - scaled.height()) / 2);
-        p.drawPixmap(topLeft, scaled);
+        // 提供方已按目标尺寸 + devicePixelRatio 生成：pixmap.width()/height()
+        // 即其逻辑尺寸，直接用逻辑矩形绘制即可，drawPixmap 会按 dpr 把物理
+        // 像素渲染到目标矩形（高清且不变形）。
+        // 旧逻辑在 paintEvent 里又对带 dpr 的 pixmap 调 scaled(target=逻辑尺寸)，
+        // 在 Qt5 下 width()/height() 返回物理像素，scaled/drawPixmap 把物理尺寸
+        // 当逻辑用，导致高分屏下图片被缩小并贴左上角。
+        const QSizeF pmSize(qreal(m_pixmap.width()), qreal(m_pixmap.height()));
+        const qreal scale = qMin(r.width() / pmSize.width(),
+                                 r.height() / pmSize.height());
+        const QSizeF drawnSize(pmSize.width() * scale, pmSize.height() * scale);
+        const QRectF drawRect(
+            r.left() + (r.width() - drawnSize.width()) / 2.0,
+            r.top() + (r.height() - drawnSize.height()) / 2.0,
+            drawnSize.width(), drawnSize.height());
+        // Qt6 无 drawPixmap(const QRectF&, const QPixmap&) 双参重载，用 QRect 版；
+        // 它会对带 dpr 的 pixmap 按物理像素缩放适配目标矩形，高清且不变形。
+        p.drawPixmap(drawRect.toRect(), m_pixmap);
     }
     p.setClipping(false);
 
