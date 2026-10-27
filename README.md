@@ -21,6 +21,19 @@ cmake --build build -j$(nproc)
 | `build/src/gxde-wallpaper-chooser` | 独立窗口（桌面右键「壁纸与屏保」入口 / 直接启动） |
 | `build/src/libgxde-wallpicker.a` | 可嵌入控件库，供控制中心复用 |
 
+## 界面
+
+- **页签**：桌面壁纸 / 锁屏壁纸 / 屏保。独立窗口下页签放进 `DTitlebar`
+  （DTK `DTabBar` + 应用图标，参考 gxde-editor / gxde-system-assistant）；
+  嵌入控制中心等没有 `DTitlebar` 的场景自动回落为控件内顶部页签。
+- **图标与桌面入口**：`data/gxde-wallpaper-chooser.svg` + 16–256px PNG 安装到
+  hicolor 图标主题，`data/gxde-wallpaper-chooser.desktop` 安装到 applications
+  （含 `StartupWMClass`，Dock 能正确匹配运行中的窗口）；窗口内嵌同名 PNG
+  资源，从构建目录直接运行也能显示图标。
+- **自定义分类**：壁纸页「分类(C)...」新建/重命名/删除分类，右键任意壁纸加入或
+  移出分类；来源下拉中出现「分类：X」过滤项，「全部壁纸」视图顶部显示分类分组。
+  软件不内置任何分类，全部由用户创建。
+
 ## 功能与底层契约
 
 - **单击缩略图立即应用**：GXDE X11 上 `com.deepin.daemon.Appearance.Set` 是
@@ -30,12 +43,23 @@ cmake --build build -j$(nproc)
   `Appearance.Changed("background", uri)` 信号驱动桌面面板即时重载。
   daemon Set 仍保留作真实 deepin 兼容；实际生效经 `com.deepin.wm` 当前
   工作区背景验证（仅 Wayland/真实 deepin 栈）。
+- **桌面壁纸 / 锁屏壁纸分离**：顶部「壁纸」页签只改桌面（静态图走
+  Appearance/gsettings，视频走桌面面板）；「锁屏」页签通过 gxdm 的
+  `top.gxde.DisplayManager.SetLockWallpaperOverride(path)` 单独设置锁屏壁纸，
+  用 `LockWallpaperOverride()` 回读当前覆盖并高亮。锁屏不支持视频（页签内会过滤
+  视频卡片）；锁屏快照同样参与「取消」恢复，原本没有覆盖时取消会清除覆盖。
 - **浏览选择文件与拖拽**：「浏览(B)...」为菜单按钮——「选择文件夹(F)...」扫描目录加入
   来源（原有行为）；「选择图片或动态壁纸(P)...」选中单个文件后立即应用：图片按
   daemon Prepare 契约拷入自定义壁纸库（md5 命名去重）再应用，重载后仍出现在
   「自定义壁纸」；视频交桌面面板入库。窗口接受拖放：拖入图片/动态壁纸同样入库并
   立即应用（多选取第一个可用的），拖入文件夹等同「浏览文件夹」，悬停时页面显示
   提示遮罩，非图片/视频/文件夹内容光标显示禁止。
+- **用户自定义分类**：分类是虚拟归类，不移动/复制壁纸文件；同一张壁纸可属于多个
+  分类。新建/重命名/删除、右键加入/移出、「新建分类并加入」均在壁纸页完成，
+  分类列表持久化在
+  `~/.config/GXDE/gxde-wallpaper-chooser/categories.json`（JSON，路径为绝对路径）。
+  「全部壁纸」视图把分类作为置顶分组，来源下拉提供「分类：X」过滤；软件不内置
+  风景、美食等任何分类，只提供创建能力。
 - **图片位置(P)**：写 `~/.config/GXDE/dde-file-manager/wallpaperDisplayMethod`（桌面面板
   fileWatcher 即时刷新）+ `picture-options` gsettings 双写。
 - **更改图片时间间隔(N)**：`WallpaperSlideShow` 属性（`""`/秒数/`login`/`wakeup`），
@@ -49,7 +73,8 @@ cmake --build build -j$(nproc)
   {line-power,battery}-screensaver-delay`（schema 存在时优先走它）：dde-session-daemon
   电源模块据此设置 X 空闲超时，空闲到期经 `HandleIdleOn` → `com.deepin.ScreenSaver.Start()`
   启动屏保；schema 不存在（上游 deepin v23+）则回退 D-Bus 属性。
-- **取消**：恢复打开窗口时的快照（壁纸/显示方式/轮播/屏保/动态壁纸状态）；保存修改即关闭。
+- **取消**：恢复打开窗口时的快照（桌面/锁屏壁纸、显示方式、轮播、屏保、动态壁纸
+  状态）；保存修改即关闭。
 - **视频动态壁纸**：壁纸目录扫描同时收录视频（mp4/mkv/webm/avi 等，按内容 MIME 判断），
   缩略图为 `QMediaPlayer` 抓取的首帧（8 秒超时/失败给播放三角占位图），卡片带播放角标。
   单击即经桌面面板 `com.deepin.dde.desktop.SetDynamicWallpaper` 生效（面板负责拷贝入库、
@@ -68,6 +93,10 @@ cmake --build build -j$(nproc)
 3. 点击回调里 `m_frameProxy->pushWidget(this, page)`，page 内嵌
    `GxdeWallpaper::PickerWidget` —— 翻页动画自动获得；
 4. 连接 `PickerWidget::accepted/rejected` → `popWidget`。
+
+嵌入场景没有 DMainWindow 的 `DTitlebar`，`PickerWidget` 会显示自带的顶部
+`DTabBar` 页签；独立窗口则由 `main.cpp` 把同一个页签 widget 放进标题栏并隐藏
+内置顶栏（`setHeaderVisible(false)`）。
 
 注意：控制中心的插件通道（`plugins/`）当前是死代码（`loadPlugins()` 被注释），
 需走内建模块注册路径。

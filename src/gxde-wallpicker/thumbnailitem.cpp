@@ -1,5 +1,6 @@
 #include "thumbnailitem.h"
 
+#include <QContextMenuEvent>
 #include <QEnterEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -59,13 +60,13 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     p.fillRect(r, QColor(0, 0, 0, 40));
 
     if (!m_pixmap.isNull()) {
-        // 提供方已按目标尺寸 + devicePixelRatio 生成：pixmap.width()/height()
-        // 即其逻辑尺寸，直接用逻辑矩形绘制即可，drawPixmap 会按 dpr 把物理
-        // 像素渲染到目标矩形（高清且不变形）。
-        // 旧逻辑在 paintEvent 里又对带 dpr 的 pixmap 调 scaled(target=逻辑尺寸)，
-        // 在 Qt5 下 width()/height() 返回物理像素，scaled/drawPixmap 把物理尺寸
-        // 当逻辑用，导致高分屏下图片被缩小并贴左上角。
-        const QSizeF pmSize(qreal(m_pixmap.width()), qreal(m_pixmap.height()));
+        // 提供方已按目标尺寸 * dpr 生成物理像素并设置 devicePixelRatio。
+        // Qt6 的 QPixmap::width()/height() 仍是物理像素（不是逻辑尺寸），
+        // 这里必须用 deviceIndependentSize()，否则 dpr=2 时算出的绘制矩形
+        // 只有卡片的一半高（上下留黑边，看起来像预览图展示不全）。
+        // drawPixmap(QRect, pixmap) 的 target 是逻辑坐标，会把带 dpr 的
+        // 物理像素正确缩放到该矩形（高清且不变形）。
+        const QSizeF pmSize = m_pixmap.deviceIndependentSize();
         const qreal scale = qMin(r.width() / pmSize.width(),
                                  r.height() / pmSize.height());
         const QSizeF drawnSize(pmSize.width() * scale, pmSize.height() * scale);
@@ -73,8 +74,6 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
             r.left() + (r.width() - drawnSize.width()) / 2.0,
             r.top() + (r.height() - drawnSize.height()) / 2.0,
             drawnSize.width(), drawnSize.height());
-        // Qt6 无 drawPixmap(const QRectF&, const QPixmap&) 双参重载，用 QRect 版；
-        // 它会对带 dpr 的 pixmap 按物理像素缩放适配目标矩形，高清且不变形。
         p.drawPixmap(drawRect.toRect(), m_pixmap);
     }
     p.setClipping(false);
@@ -143,6 +142,12 @@ void ThumbnailItem::leaveEvent(QEvent *event)
     m_hovered = false;
     update();
     QWidget::leaveEvent(event);
+}
+
+void ThumbnailItem::contextMenuEvent(QContextMenuEvent *event)
+{
+    emit contextMenuRequested(m_path, event->globalPos());
+    event->accept();
 }
 
 } // namespace GxdeWallpaper

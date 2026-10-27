@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7FD8FF"/>
+      <stop offset="0.55" stop-color="#4BA3E3"/>
+      <stop offset="1" stop-color="#2B6CB0"/>
+    </linearGradient>
+    <linearGradient id="mountainBack" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#6D5BD0"/>
+    </linearGradient>
+    <linearGradient id="mountainFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="mountainFront2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset="1" stop-color="#FFB020"/>
+    </linearGradient>
+    <clipPath id="screenClip">
+      <rect x="6" y="8" width="36" height="26" rx="2.5"/>
+    </clipPath>
+  </defs>
+
+  <!-- 显示器外框 -->
+  <rect x="4" y="6" width="40" height="30" rx="4.5" fill="#2B3445"/>
+  <rect x="4.75" y="6.75" width="38.5" height="28.5" rx="3.8" fill="none"
+        stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="1.2"/>
+
+  <!-- 屏幕内容：桌面壁纸风景 -->
+  <g clip-path="url(#screenClip)">
+    <rect x="6" y="8" width="36" height="26" fill="url(#screen)"/>
+    <circle cx="34.5" cy="15.5" r="7" fill="#FFD166" opacity="0.16"/>
+    <circle cx="34.5" cy="15.5" r="4.2" fill="url(#sun)"/>
+    <path d="M6 33.5 L15.5 18.5 L22 27.5 L27.5 20.5 L42 33.5 Z"
+          fill="url(#mountainBack)"/>
+    <path d="M6 34 L17 24 L25.5 34 Z" fill="url(#mountainFront)"/>
+    <path d="M20 34 L29 25.5 L42 34 Z" fill="url(#mountainFront2)"/>
+    <path d="M6 34 C13 31.5 17 33 23 34 Z" fill="#0B5E55" opacity="0.55"/>
+    <path d="M30 34 C34 32.5 38 32.8 42 34 Z" fill="#0B5E55" opacity="0.45"/>
+  </g>
+
+  <!-- 屏幕玻璃高光 -->
+  <path d="M6 8 H42 V14 C30 17.5 18 17.5 6 14 Z" fill="#FFFFFF" opacity="0.10"/>
+
+  <!-- 底座 -->
+  <path d="M20.5 36 H27.5 L28.2 39.5 H19.8 Z" fill="#546074"/>
+  <rect x="14.5" y="39.2" width="19" height="3" rx="1.5" fill="#3B4657"/>
+  <rect x="14.5" y="39.2" width="19" height="1" rx="0.5" fill="#FFFFFF" opacity="0.16"/>
+
+  <!-- 底部阴影 -->
+  <ellipse cx="24" cy="44" rx="13" ry="1.4" fill="#1E293B" opacity="0.18"/>
+</svg>

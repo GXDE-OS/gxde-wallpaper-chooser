@@ -9,6 +9,10 @@ set(WALLPICKER_SOURCES
     gxde-wallpicker/appearanceclient.cpp
     gxde-wallpicker/dynamicwallpaperclient.h
     gxde-wallpicker/dynamicwallpaperclient.cpp
+    gxde-wallpicker/lockwallpaperclient.h
+    gxde-wallpicker/lockwallpaperclient.cpp
+    gxde-wallpicker/categorystore.h
+    gxde-wallpicker/categorystore.cpp
     gxde-wallpicker/screensaverclient.h
     gxde-wallpicker/screensaverclient.cpp
     gxde-wallpicker/displaysettings.h
@@ -49,6 +53,7 @@ target_link_libraries(gxde-wallpicker
 
 add_executable(gxde-wallpaper-chooser
     app/main.cpp
+    resources.qrc
 )
 
 target_link_libraries(gxde-wallpaper-chooser PRIVATE gxde-wallpicker)
@@ -56,6 +61,16 @@ target_link_libraries(gxde-wallpaper-chooser PRIVATE gxde-wallpicker)
 install(TARGETS gxde-wallpicker gxde-wallpaper-chooser
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
+)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/gxde-wallpaper-chooser.svg
+    DESTINATION share/icons/hicolor/scalable/apps
+)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../data/icons/hicolor/
+    DESTINATION share/icons/hicolor
+    FILES_MATCHING PATTERN "*.png"
+)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/gxde-wallpaper-chooser.desktop
+    DESTINATION share/applications
 )
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gxde-wallpicker/
     DESTINATION include/gxde-wallpicker

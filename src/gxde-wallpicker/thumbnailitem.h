@@ -25,12 +25,14 @@ public:
 signals:
     void clicked(const QString &path);
     void hoverEntered(const QString &path); // 懒加载触发
+    void contextMenuRequested(const QString &path, const QPoint &globalPos);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     QString m_path;

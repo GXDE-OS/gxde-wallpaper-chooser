@@ -3,6 +3,7 @@
 #include "appearanceclient.h"
 #include "displaysettings.h"
 #include "dynamicwallpaperclient.h"
+#include "lockwallpaperclient.h"
 #include "screensaverclient.h"
 #include "screensaverpage.h"
 #include "thumbnailprovider.h"
@@ -28,6 +29,7 @@ PickerWidget::PickerWidget(QWidget *parent)
     m_displaySettings = new DisplaySettings(this);
     m_thumbnails = new ThumbnailProvider(this);
     m_dynamicWallpapers = new DynamicWallpaperClient(this);
+    m_lockWallpapers = new LockWallpaperClient(this);
 
     buildUi();
 
@@ -66,6 +68,22 @@ PickerWidget::PickerWidget(QWidget *parent)
                         });
                 m_dynamicWallpapers->fetchCurrentDynamicWallpaper();
             });
+
+    // 锁屏壁纸应用失败 → 提示并回读 gxdm 的真实状态
+    connect(m_lockWallpapers, &LockWallpaperClient::applyFailed, this,
+            [this](const QString &path, const QString &reason) {
+                Q_UNUSED(path);
+                auto *toast = new Dtk::Widget::DToast(this);
+                toast->setText(tr("应用锁屏壁纸失败：%1").arg(reason));
+                toast->setDuration(3000);
+                toast->pop();
+                connect(toast, &Dtk::Widget::DToast::visibleChanged, toast,
+                        [toast](bool visible) {
+                            if (!visible)
+                                toast->deleteLater();
+                        });
+                m_lockWallpapers->fetchCurrent();
+            });
 }
 
 PickerWidget::~PickerWidget() = default;
@@ -76,21 +94,36 @@ void PickerWidget::buildUi()
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    // 顶部：模式切换贴右
-    auto *topBar = new QHBoxLayout;
+    // 顶部：模式切换贴右。独立窗口会把 m_modeSwitch 移入 DTitlebar，
+    // 届时隐藏整行；嵌入控制中心时保持原位置。
+    m_topBar = new QWidget(this);
+    auto *topBar = new QHBoxLayout(m_topBar);
     topBar->setContentsMargins(24, 14, 24, 0);
-    m_modeSwitch = new Dtk::Widget::DSegmentedControl(this);
-    const int wallpaperIdx = m_modeSwitch->addSegmented(tr("壁纸"));
-    const int saverIdx = m_modeSwitch->addSegmented(tr("屏保"));
-    Q_UNUSED(wallpaperIdx);
-    Q_UNUSED(saverIdx);
+    m_modeSwitch = new Dtk::Widget::DTabBar(m_topBar);
+    m_modeSwitch->setTabsClosable(false);
+    m_modeSwitch->setVisibleAddButton(false);
+    m_modeSwitch->setMovable(false);
+    m_modeSwitch->setDragable(false);
+    m_modeSwitch->setExpanding(false);
+    m_modeSwitch->setDrawBase(false);
+    m_modeSwitch->setAutoHide(false);
+    m_modeSwitch->setFixedHeight(40);
+    const int wallpaperIdx = m_modeSwitch->addTab(tr("壁纸"));
+    const int lockIdx = m_modeSwitch->addTab(tr("锁屏"));
+    const int saverIdx = m_modeSwitch->addTab(tr("屏保"));
+    for (int i = 0; i < m_modeSwitch->count(); ++i) {
+        m_modeSwitch->setTabMinimumSize(i, QSize(80, 32));
+        m_modeSwitch->setTabMaximumSize(i, QSize(120, 40));
+    }
+    m_modeSwitch->setCurrentIndex(wallpaperIdx);
     topBar->addStretch();
     topBar->addWidget(m_modeSwitch);
-    root->addLayout(topBar);
+    root->addWidget(m_topBar);
 
-    // 页面栈
+    // 页面栈：壁纸与锁屏共用 WallpaperPage，只是应用目标不同
     m_wallpaperPage = new WallpaperPage(m_appearance, m_displaySettings,
-                                        m_thumbnails, m_dynamicWallpapers, this);
+                                        m_thumbnails, m_dynamicWallpapers,
+                                        m_lockWallpapers, this);
     m_screensaverPage = new ScreensaverPage(m_screensaver, m_thumbnails, this);
     m_pages = new QWidget(this);
     auto *stack = new QStackedLayout(m_pages);
@@ -99,11 +132,18 @@ void PickerWidget::buildUi()
     stack->addWidget(m_screensaverPage);
     root->addWidget(m_pages, 1);
 
-    connect(m_modeSwitch, &Dtk::Widget::DSegmentedControl::currentChanged, this,
-            [this, stack](int index) {
-                stack->setCurrentIndex(index);
-                if (index == 1)
+    connect(m_modeSwitch, &Dtk::Widget::DTabBar::currentChanged, this,
+            [this, stack, wallpaperIdx, lockIdx, saverIdx](int index) {
+                if (index == lockIdx) {
+                    m_wallpaperPage->setTarget(WallpaperTarget::LockScreen);
+                    stack->setCurrentWidget(m_wallpaperPage);
+                } else if (index == saverIdx) {
+                    stack->setCurrentWidget(m_screensaverPage);
                     m_screensaverPage->reload(); // 每次进屏保页刷新（封面懒加载）
+                } else if (index == wallpaperIdx) {
+                    m_wallpaperPage->setTarget(WallpaperTarget::Desktop);
+                    stack->setCurrentWidget(m_wallpaperPage);
+                }
             });
 
     // 底部按钮
@@ -112,8 +152,8 @@ void PickerWidget::buildUi()
     buttonRow->addStretch();
     auto *cancelBtn = new QPushButton(tr("取消"), this);
     auto *saveBtn = new Dtk::Widget::DSuggestButton(tr("保存修改"), this);
-    buttonRow->addWidget(saveBtn);
     buttonRow->addWidget(cancelBtn);
+    buttonRow->addWidget(saveBtn);
     root->addLayout(buttonRow);
 
     connect(saveBtn, &QPushButton::clicked, this, &PickerWidget::accepted);
@@ -121,6 +161,12 @@ void PickerWidget::buildUi()
         restoreSnapshot();
         emit rejected();
     });
+}
+
+void PickerWidget::setHeaderVisible(bool visible)
+{
+    if (m_topBar)
+        m_topBar->setVisible(visible);
 }
 
 void PickerWidget::activate()
@@ -154,6 +200,19 @@ void PickerWidget::takeSnapshot()
             }
         });
     m_dynamicWallpapers->fetchCurrentDynamicWallpaper();
+
+    // 锁屏壁纸状态同样异步拉取，首个结果即快照
+    m_snapshotLockWallpaperValid = false;
+    disconnect(m_lockSnapshotConn);
+    m_lockSnapshotConn = connect(
+        m_lockWallpapers, &LockWallpaperClient::currentReady, this,
+        [this](const QString &path) {
+            if (!m_snapshotLockWallpaperValid) {
+                m_snapshotLockWallpaper = path;
+                m_snapshotLockWallpaperValid = true;
+            }
+        });
+    m_lockWallpapers->fetchCurrent();
 }
 
 void PickerWidget::restoreSnapshot()
@@ -186,6 +245,15 @@ void PickerWidget::restoreSnapshot()
     if (m_snapshotDynamicValid
             && m_dynamicWallpapers->lastKnownCurrent() != m_snapshotDynamic)
         m_dynamicWallpapers->applyDynamicWallpaper(m_snapshotDynamic);
+
+    // 锁屏壁纸：空快照表示原本没有覆盖，取消时清除本次设置
+    if (m_snapshotLockWallpaperValid && m_lockWallpapers->available()
+            && m_lockWallpapers->lastKnownCurrent() != m_snapshotLockWallpaper) {
+        if (m_snapshotLockWallpaper.isEmpty())
+            m_lockWallpapers->clearLockWallpaper();
+        else
+            m_lockWallpapers->applyLockWallpaper(m_snapshotLockWallpaper);
+    }
 }
 
 } // namespace GxdeWallpaper

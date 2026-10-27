@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=壁纸与屏保
+GenericName=Wallpaper & Screensaver
+Comment=选择桌面背景、锁屏背景与屏幕保护程序
+Exec=gxde-wallpaper-chooser
+Icon=gxde-wallpaper-chooser
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=wallpaper;background;desktop;lock;screen;screensaver;壁纸;锁屏;屏保;
+StartupNotify=true
+StartupWMClass=gxde-wallpaper-chooser
+X-GXDE-Vendor=GXDE

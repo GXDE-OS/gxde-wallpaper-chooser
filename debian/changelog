@@ -1,3 +1,18 @@
+gxde-wallpaper-chooser (0.2.0) unstable; urgency=medium
+
+  * 新增应用图标与桌面入口；壁纸/锁屏/屏保页签改为 DTitlebar 内的 DTabBar。
+  * 新增用户自定义壁纸分类：新建/重命名/删除、右键加入/移出、来源过滤，
+    持久化于 ~/.config/GXDE/gxde-wallpaper-chooser/categories.json。
+  * 新增锁屏壁纸模式：经 top.gxde.DisplayManager 单独设置锁屏壁纸，
+    与桌面壁纸分离；锁屏仅支持静态图片，取消时恢复锁屏快照。
+  * 修复首屏缩略图需要悬停才显示的问题。
+  * 修复高分屏下缩略图绘制尺寸偏小（预览图上下留空）的问题。
+  * 安装 hicolor 多尺寸图标并添加 StartupWMClass，修复 Dock 缺图标。
+  * 移除空的「此位置没有可用的图片」占位提示。
+  * 对话框改用 DTK DDialog/DInputDialog/DFileDialog；取消/保存按钮改为常规顺序。
+
+ -- shenmo <shenmo@spark-app.store>  Tue, 27 Oct 2026 19:39:25 +0800
+
 gxde-wallpaper-chooser (0.1.1) unstable; urgency=medium
 
   * 启动时窗口居中于光标所在显示器（可用区域，HiDPI 安全）。
