@@ -1,4 +1,4 @@
-gxde-wallpaper-chooser (0.1.0-4) unstable; urgency=medium
+gxde-wallpaper-chooser (0.1.1) unstable; urgency=medium
 
   * 启动时窗口居中于光标所在显示器（可用区域，HiDPI 安全）。
   * 0.1.0-3：可执行程序随包改名 /usr/bin/gxde-wallpaper-chooser。
