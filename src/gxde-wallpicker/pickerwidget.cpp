@@ -4,6 +4,7 @@
 #include "displaysettings.h"
 #include "dynamicwallpaperclient.h"
 #include "lockwallpaperclient.h"
+#include "reliefstyle.h"
 #include "screensaverclient.h"
 #include "screensaverpage.h"
 #include "thumbnailprovider.h"
@@ -14,12 +15,81 @@
 #include <dsuggestbutton.h>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPainter>
+#include <QPointer>
 #include <QPushButton>
 #include <QStackedLayout>
 #include <QVBoxLayout>
 #include <QUrl>
+#include <QVariantAnimation>
 
 namespace GxdeWallpaper {
+
+namespace {
+
+constexpr int kPageSlideMs = 280;
+
+// 页面切换过渡：整页横向推移，旧页面滑出、新页面从另一侧滑入，不做淡出。
+// 旧页面用切换前的截图绘制；新页面直接移动真实控件，
+// 异步加载的列表/缩略图在滑动中照常出现。结束（或被下一次切换打断）时归位。
+class PageTransition : public QWidget
+{
+public:
+    PageTransition(QWidget *host, const QPixmap &from, QWidget *to, int direction)
+        : QWidget(host)
+        , m_from(from)
+        , m_to(to)
+        , m_direction(direction)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setGeometry(host->rect());
+
+        auto *anim = new QVariantAnimation(this);
+        anim->setStartValue(0.0);
+        anim->setEndValue(1.0);
+        anim->setDuration(kPageSlideMs);
+        anim->setEasingCurve(QEasingCurve::OutCubic);
+        connect(anim, &QVariantAnimation::valueChanged, this,
+                [this](const QVariant &value) {
+                    m_progress = value.toReal();
+                    layoutPages();
+                });
+        connect(anim, &QVariantAnimation::finished, this, &QObject::deleteLater);
+
+        layoutPages(); // 首帧前就把新页面挪到起点，避免闪一下终态
+        raise();
+        show();
+        anim->start();
+    }
+
+    ~PageTransition() override
+    {
+        if (m_to && parentWidget())
+            m_to->move(0, 0);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.drawPixmap(QPointF(-m_direction * width() * m_progress, 0), m_from);
+    }
+
+private:
+    void layoutPages()
+    {
+        if (m_to)
+            m_to->move(qRound(m_direction * width() * (1 - m_progress)), 0);
+        update();
+    }
+
+    QPixmap m_from;
+    QPointer<QWidget> m_to;
+    int m_direction;
+    qreal m_progress = 0;
+};
+
+} // namespace
 
 PickerWidget::PickerWidget(QWidget *parent)
     : QWidget(parent)
@@ -32,6 +102,7 @@ PickerWidget::PickerWidget(QWidget *parent)
     m_lockWallpapers = new LockWallpaperClient(this);
 
     buildUi();
+    ReliefStyle::applyTo(this); // 按钮/下拉框加一点立体感
 
     // 外部壁纸变更（含本控件应用成功）→ 同步高亮
     connect(m_appearance, &AppearanceClient::wallpaperChanged, this,
@@ -99,7 +170,7 @@ void PickerWidget::buildUi()
     m_topBar = new QWidget(this);
     auto *topBar = new QHBoxLayout(m_topBar);
     topBar->setContentsMargins(24, 14, 24, 0);
-    m_modeSwitch = new Dtk::Widget::DTabBar(m_topBar);
+    m_modeSwitch = new ModeTabBar(m_topBar);
     m_modeSwitch->setTabsClosable(false);
     m_modeSwitch->setVisibleAddButton(false);
     m_modeSwitch->setMovable(false);
@@ -112,7 +183,7 @@ void PickerWidget::buildUi()
     const int lockIdx = m_modeSwitch->addTab(tr("锁屏"));
     const int saverIdx = m_modeSwitch->addTab(tr("屏保"));
     for (int i = 0; i < m_modeSwitch->count(); ++i) {
-        m_modeSwitch->setTabMinimumSize(i, QSize(80, 32));
+        m_modeSwitch->setTabMinimumSize(i, QSize(72, 32));
         m_modeSwitch->setTabMaximumSize(i, QSize(120, 40));
     }
     m_modeSwitch->setCurrentIndex(wallpaperIdx);
@@ -134,6 +205,14 @@ void PickerWidget::buildUi()
 
     connect(m_modeSwitch, &Dtk::Widget::DTabBar::currentChanged, this,
             [this, stack, wallpaperIdx, lockIdx, saverIdx](int index) {
+                // 切换前截下旧页面（连点时会带上进行中的过渡，画面连续）
+                QPixmap from;
+                if (m_pages->isVisible())
+                    from = m_pages->grab();
+                delete m_pageTransition;
+                const int direction = index > m_modeIndex ? 1 : -1;
+                m_modeIndex = index;
+
                 if (index == lockIdx) {
                     m_wallpaperPage->setTarget(WallpaperTarget::LockScreen);
                     stack->setCurrentWidget(m_wallpaperPage);
@@ -144,11 +223,18 @@ void PickerWidget::buildUi()
                     m_wallpaperPage->setTarget(WallpaperTarget::Desktop);
                     stack->setCurrentWidget(m_wallpaperPage);
                 }
+
+                if (!from.isNull())
+                    m_pageTransition = new PageTransition(m_pages, from,
+                                                          stack->currentWidget(),
+                                                          direction);
             });
 
     // 底部按钮
     auto *buttonRow = new QHBoxLayout;
     buttonRow->setContentsMargins(24, 8, 24, 16);
+    // 子布局不设间距会继承 root 的 0，两个按钮会贴在一起
+    buttonRow->setSpacing(10);
     buttonRow->addStretch();
     auto *cancelBtn = new QPushButton(tr("取消"), this);
     auto *saveBtn = new Dtk::Widget::DSuggestButton(tr("保存修改"), this);

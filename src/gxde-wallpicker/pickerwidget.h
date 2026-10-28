@@ -12,8 +12,10 @@
  */
 #pragma once
 
+#include "modetabbar.h"
+
+#include <QPointer>
 #include <QWidget>
-#include <dtabbar.h>
 
 namespace GxdeWallpaper {
 
@@ -58,9 +60,11 @@ private:
     LockWallpaperClient *m_lockWallpapers = nullptr;
     WallpaperPage *m_wallpaperPage = nullptr;
     ScreensaverPage *m_screensaverPage = nullptr;
-    Dtk::Widget::DTabBar *m_modeSwitch = nullptr;
+    ModeTabBar *m_modeSwitch = nullptr;
     QWidget *m_topBar = nullptr;
     QWidget *m_pages = nullptr;
+    QPointer<QWidget> m_pageTransition; // 进行中的页面切换过渡（结束后自删）
+    int m_modeIndex = 0;
 
     bool m_activated = false;
     bool m_hasSnapshot = false;

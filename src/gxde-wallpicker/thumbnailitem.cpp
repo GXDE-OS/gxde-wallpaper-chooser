@@ -53,7 +53,13 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
 
     const QRectF r = QRectF(rect()).adjusted(1, 1, -1, -1);
 
-    // 底：占位灰 / 图片（保持比例居中）
+    // 卡片下方 1px 淡投影，让卡片略微浮起
+    p.setPen(QPen(QColor(0, 0, 0, 16), 1));
+    p.setBrush(Qt::NoBrush);
+    p.drawRoundedRect(r.translated(0, 1), kRadius, kRadius);
+
+    // 底：占位灰 / 图片（保持比例铺满居中，超出部分由圆角裁剪裁掉，
+    // 比例与卡片不一致时也不会露出两侧/上下的占位灰）
     QPainterPath clip;
     clip.addRoundedRect(r, kRadius, kRadius);
     p.setClipPath(clip);
@@ -67,7 +73,7 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
         // drawPixmap(QRect, pixmap) 的 target 是逻辑坐标，会把带 dpr 的
         // 物理像素正确缩放到该矩形（高清且不变形）。
         const QSizeF pmSize = m_pixmap.deviceIndependentSize();
-        const qreal scale = qMin(r.width() / pmSize.width(),
+        const qreal scale = qMax(r.width() / pmSize.width(),
                                  r.height() / pmSize.height());
         const QSizeF drawnSize(pmSize.width() * scale, pmSize.height() * scale);
         const QRectF drawRect(
@@ -79,11 +85,15 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     p.setClipping(false);
 
     // 描边：当前壁纸蓝色加粗 / 悬停高亮 / 常态细边
+    // 选中/悬停用 GXDE 主题色（调色板 Highlight），与标题栏页签一致
+    const QColor accent = palette().color(QPalette::Highlight);
     QPen pen;
     if (m_current) {
-        pen = QPen(QColor(53, 132, 228), 2.5);
+        pen = QPen(accent, 2.5);
     } else if (m_hovered) {
-        pen = QPen(QColor(53, 132, 228, 160), 1.5);
+        QColor hover = accent;
+        hover.setAlpha(160);
+        pen = QPen(hover, 1.5);
     } else {
         pen = QPen(QColor(0, 0, 0, 45), 1);
     }
@@ -95,7 +105,7 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     if (m_current) {
         const QRectF badge(r.right() - 22, r.top() + 4, 18, 18);
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(53, 132, 228));
+        p.setBrush(accent);
         p.drawEllipse(badge);
         p.setPen(QPen(Qt::white, 2));
         QFont f = p.font();

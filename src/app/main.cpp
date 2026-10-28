@@ -12,12 +12,54 @@
 #include <dmainwindow.h>
 #include <QApplication>
 #include <QCursor>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QGuiApplication>
 #include <QLabel>
 #include <QScreen>
 #include <QTimer>
+
+namespace {
+
+// 让页签相对整条标题栏水平居中：不进布局，随宿主尺寸变化手动摆放，
+// 不受左侧图标和右侧窗口按钮（数量/宽度随窗口标志变化）的影响。
+// DTitlebar 自带的 fixCenterPos 只按调用时的按钮区宽度补位，显示前该宽度不准。
+class TitlebarCenterer : public QObject
+{
+public:
+    TitlebarCenterer(QWidget *titlebar, QWidget *host, QWidget *target)
+        : QObject(host), m_titlebar(titlebar), m_host(host), m_target(target)
+    {
+        host->installEventFilter(this);
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == m_host
+                && (event->type() == QEvent::Resize || event->type() == QEvent::Move
+                    || event->type() == QEvent::Show))
+            reposition();
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    void reposition()
+    {
+        m_target->resize(m_target->sizeHint());
+        const int centerX =
+            m_host->mapFrom(m_titlebar, QPoint(m_titlebar->width() / 2, 0)).x();
+        m_target->move(centerX - m_target->width() / 2,
+                       (m_host->height() - m_target->height()) / 2);
+    }
+
+    QWidget *m_titlebar;
+    QWidget *m_host;
+    QWidget *m_target;
+};
+
+} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -48,7 +90,7 @@ int main(int argc, char *argv[])
     window.setCentralWidget(picker);
 
     // 参考 gxde-system-assistant / gxde-editor：图标 + 页签放进 DTitlebar，
-    // 页签由 DTK 的 DTabBar 提供（无关闭/新增按钮，不可拖动）。
+    // 页签由 DTK 的 DTabBar 提供（无关闭/新增按钮，不可拖动），在标题栏居中。
     auto *titleContent = new QWidget(&window);
     auto *titleLayout = new QHBoxLayout(titleContent);
     titleLayout->setContentsMargins(0, 0, 0, 0);
@@ -58,14 +100,21 @@ int main(int argc, char *argv[])
     iconLabel->setFixedSize(22, 22);
     titleLayout->addSpacing(12);
     titleLayout->addWidget(iconLabel);
-    titleLayout->addSpacing(10);
-    titleLayout->addWidget(picker->modeSwitch());
     titleLayout->addStretch();
+    picker->modeSwitch()->setParent(titleContent);
+    picker->modeSwitch()->show(); // 换父控件后会变为隐藏
 
     window.titlebar()->setCustomWidget(titleContent, Qt::AlignVCenter, false);
     window.titlebar()->setBackgroundTransparent(true);
     window.titlebar()->setSeparatorVisible(true);
     window.titlebar()->setFixedHeight(43);
+    // 容器默认只有图标高（22px），页签不在布局里撑不高它，会被裁掉上下边；撑满标题栏
+    titleContent->setFixedHeight(window.titlebar()->height());
+    new TitlebarCenterer(window.titlebar(), titleContent, picker->modeSwitch());
+    // 不允许最大化：去掉窗口标志会隐藏最大化按钮，并让 X11 下的窗管拒绝最大化；
+    // disableFlags 额外拦住双击标题栏的切换
+    window.setWindowFlag(Qt::WindowMaximizeButtonHint, false);
+    window.titlebar()->setDisableFlags(Qt::WindowMaximizeButtonHint);
     // 控件内部的顶部行仅留给控制中心等无 DTitlebar 的嵌入场景
     picker->setHeaderVisible(false);
 

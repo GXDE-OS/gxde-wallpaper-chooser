@@ -60,7 +60,8 @@ void ThumbnailProvider::loadAsync(const QString &path, const QSize &target)
         reader.setAutoTransform(true);
         QSize original = reader.size();
         if (original.isValid()) {
-            QSize scaled = original.scaled(target, Qt::KeepAspectRatio);
+            // 按铺满目标的尺寸解码：卡片会居中裁剪，解码得比卡片小会被放大发糊
+            QSize scaled = original.scaled(target, Qt::KeepAspectRatioByExpanding);
             // 按 dpr 放大到物理像素，保证 HiDPI 清晰
             reader.setScaledSize(QSize(qRound(scaled.width() * dpr),
                                        qRound(scaled.height() * dpr)));

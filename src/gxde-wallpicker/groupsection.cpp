@@ -5,12 +5,17 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QVariantAnimation>
 #include <QVBoxLayout>
 #include <dflowlayout.h>
 
 #include <functional>
 
 namespace GxdeWallpaper {
+
+namespace {
+constexpr int kToggleMs = 220;
+}
 
 // 可点击的组标题行：▾/▸ + “组名 (数量)”
 class GroupHeader : public QWidget
@@ -21,12 +26,24 @@ public:
     {
         setFixedHeight(28);
         setCursor(Qt::PointingHandCursor);
+
+        // 箭头旋转：0° 朝下（展开）↔ -90° 朝右（收起）
+        m_arrowAnim = new QVariantAnimation(this);
+        m_arrowAnim->setDuration(kToggleMs);
+        m_arrowAnim->setEasingCurve(QEasingCurve::OutCubic);
+        connect(m_arrowAnim, &QVariantAnimation::valueChanged, this,
+                [this](const QVariant &value) {
+                    m_angle = value.toReal();
+                    update();
+                });
     }
 
     void setCollapsed(bool collapsed)
     {
-        m_collapsed = collapsed;
-        update();
+        m_arrowAnim->stop();
+        m_arrowAnim->setStartValue(m_angle);
+        m_arrowAnim->setEndValue(collapsed ? -90.0 : 0.0);
+        m_arrowAnim->start();
     }
 
     std::function<void()> onPressed;
@@ -37,18 +54,15 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
 
-        // 箭头 ▾/▸
+        // 箭头 ▾，收起时转到 ▸
         p.setPen(QPen(QColor(96, 96, 96), 1.6));
-        const QPointF c(10, height() / 2.0);
-        if (m_collapsed) {
-            p.drawPolygon(QPolygonF() << QPointF(c.x() - 3.5, c.y() - 4.5)
-                                      << QPointF(c.x() + 4, c.y())
-                                      << QPointF(c.x() - 3.5, c.y() + 4.5));
-        } else {
-            p.drawPolygon(QPolygonF() << QPointF(c.x() - 4.5, c.y() - 3)
-                                      << QPointF(c.x() + 4.5, c.y() - 3)
-                                      << QPointF(c.x(), c.y() + 4.5));
-        }
+        p.save();
+        p.translate(10, height() / 2.0);
+        p.rotate(m_angle);
+        p.drawPolygon(QPolygonF() << QPointF(-4.5, -3)
+                                  << QPointF(4.5, -3)
+                                  << QPointF(0, 4.5));
+        p.restore();
 
         // 文本：加粗组名
         QFont f = p.font();
@@ -69,7 +83,8 @@ protected:
 
 private:
     QString m_text;
-    bool m_collapsed = false;
+    qreal m_angle = 0;
+    QVariantAnimation *m_arrowAnim = nullptr;
 };
 
 GroupSection::GroupSection(const QString &title, int count, QWidget *parent)
@@ -94,6 +109,21 @@ GroupSection::GroupSection(const QString &title, int count, QWidget *parent)
     layout->addWidget(m_flowHost);
 
     static_cast<GroupHeader *>(m_header)->onPressed = [this] { toggleCollapsed(); };
+
+    // 收起/展开：卡片流的最大高度在当前高度与 0/完整高度之间过渡，
+    // 下方分组随之平滑移动；结束后解除高度限制交还给布局
+    m_heightAnim = new QVariantAnimation(this);
+    m_heightAnim->setDuration(kToggleMs);
+    m_heightAnim->setEasingCurve(QEasingCurve::OutCubic);
+    connect(m_heightAnim, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant &value) {
+                m_flowHost->setMaximumHeight(value.toInt());
+            });
+    connect(m_heightAnim, &QVariantAnimation::finished, this, [this] {
+        if (m_collapsed)
+            m_flowHost->hide();
+        m_flowHost->setMaximumHeight(QWIDGETSIZE_MAX);
+    });
 }
 
 void GroupSection::addItem(ThumbnailItem *item)
@@ -107,7 +137,18 @@ void GroupSection::toggleCollapsed()
 {
     m_collapsed = !m_collapsed;
     static_cast<GroupHeader *>(m_header)->setCollapsed(m_collapsed);
-    m_flowHost->setVisible(!m_collapsed);
+
+    // 从当前实际高度出发（动画中途再点也连贯）
+    const int from = m_flowHost->isVisible() ? m_flowHost->height() : 0;
+    const int full = m_flowHost->layout()->heightForWidth(width());
+    m_heightAnim->stop();
+    if (!m_collapsed) {
+        m_flowHost->setMaximumHeight(from);
+        m_flowHost->show();
+    }
+    m_heightAnim->setStartValue(from);
+    m_heightAnim->setEndValue(m_collapsed ? 0 : full);
+    m_heightAnim->start();
 }
 
 } // namespace GxdeWallpaper

@@ -2,6 +2,7 @@
 
 #include "groupsection.h"
 #include "screensaverclient.h"
+#include "smoothscroll.h"
 #include "thumbnailitem.h"
 #include "thumbnailprovider.h"
 
@@ -46,7 +47,7 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
     // 不用 DTypographyLabel：DTK 6.0.1 在此环境 changeEvent→setFont 无限递归（栈溢出）
     auto *title = new QLabel(tr("屏幕保护程序"), this);
     title->setStyleSheet(QStringLiteral(
-        "color: #3584e4; font-size: 17px; font-weight: 600;"));
+        "color: palette(highlight); font-size: 17px; font-weight: 600;"));
     layout->addWidget(title);
 
     auto *subtitle = new QLabel(tr("单击某个屏保使其立即生效。"), this);
@@ -59,6 +60,7 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
     m_scroll->setFrameShape(QFrame::StyledPanel);
     m_scroll->setFrameShadow(QFrame::Sunken);
     m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    enableSmoothScroll(m_scroll);
     m_scrollContent = new QWidget(m_scroll);
     m_scrollLayout = new QVBoxLayout(m_scrollContent);
     m_scrollLayout->setContentsMargins(12, 10, 12, 10);

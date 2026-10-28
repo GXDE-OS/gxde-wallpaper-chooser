@@ -27,6 +27,12 @@ set(WALLPICKER_SOURCES
     gxde-wallpicker/wallpaperpage.cpp
     gxde-wallpicker/screensaverpage.h
     gxde-wallpicker/screensaverpage.cpp
+    gxde-wallpicker/reliefstyle.h
+    gxde-wallpicker/reliefstyle.cpp
+    gxde-wallpicker/smoothscroll.h
+    gxde-wallpicker/smoothscroll.cpp
+    gxde-wallpicker/modetabbar.h
+    gxde-wallpicker/modetabbar.cpp
     gxde-wallpicker/pickerwidget.h
     gxde-wallpicker/pickerwidget.cpp
 )

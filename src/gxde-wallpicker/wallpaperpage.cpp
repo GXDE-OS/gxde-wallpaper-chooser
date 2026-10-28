@@ -6,6 +6,7 @@
 #include "dynamicwallpaperclient.h"
 #include "groupsection.h"
 #include "lockwallpaperclient.h"
+#include "smoothscroll.h"
 #include "thumbnailitem.h"
 #include "thumbnailprovider.h"
 
@@ -164,7 +165,7 @@ void WallpaperPage::buildChrome()
     // 不用 DTypographyLabel：DTK 6.0.1 在此环境 changeEvent→setFont 无限递归（栈溢出）
     m_titleLabel = new QLabel(tr("选择桌面背景"), this);
     m_titleLabel->setStyleSheet(QStringLiteral(
-        "color: #3584e4; font-size: 17px; font-weight: 600;"));
+        "color: palette(highlight); font-size: 17px; font-weight: 600;"));
     m_rootLayout->addWidget(m_titleLabel);
 
     m_subtitleLabel = new QLabel(
@@ -194,6 +195,7 @@ void WallpaperPage::buildChrome()
     m_scroll->setFrameShape(QFrame::StyledPanel);
     m_scroll->setFrameShadow(QFrame::Sunken);
     m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    enableSmoothScroll(m_scroll);
     m_scrollContent = new QWidget(m_scroll);
     m_scrollLayout = new QVBoxLayout(m_scrollContent);
     m_scrollLayout->setContentsMargins(12, 10, 12, 10);
@@ -260,13 +262,15 @@ void WallpaperPage::buildChrome()
     // 拖拽悬停提示遮罩（对鼠标事件透明，拖拽事件继续落到本页）
     m_dropOverlay = new QLabel(tr("松开以设置为壁纸"), this);
     m_dropOverlay->setAlignment(Qt::AlignCenter);
+    // 用 GXDE 主题色（调色板 Highlight）；半透明底色 QSS 的 palette() 表达不了，单独拼
+    const QColor accent = palette().color(QPalette::Highlight);
     m_dropOverlay->setStyleSheet(QStringLiteral(
         "QLabel {"
-        " background: rgba(53, 132, 228, 0.15);"
-        " border: 2px dashed #3584e4;"
+        " background: rgba(%1, %2, %3, 0.15);"
+        " border: 2px dashed palette(highlight);"
         " border-radius: 8px;"
-        " color: #3584e4; font-size: 16px; font-weight: 500;"
-        "}"));
+        " color: palette(highlight); font-size: 16px; font-weight: 500;"
+        "}").arg(accent.red()).arg(accent.green()).arg(accent.blue()));
     m_dropOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
     m_dropOverlay->hide();
 
