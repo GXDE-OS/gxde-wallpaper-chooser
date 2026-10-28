@@ -17,8 +17,11 @@
 #include <QIcon>
 #include <QGuiApplication>
 #include <QLabel>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <QScreen>
 #include <QTimer>
+#include <unistd.h>
 
 namespace {
 
@@ -67,6 +70,9 @@ int main(int argc, char *argv[])
     app.setApplicationName(QStringLiteral("gxde-wallpaper-chooser"));
     app.setApplicationDisplayName(QObject::tr("壁纸与屏保"));
     app.setOrganizationName(QStringLiteral("GXDE"));
+    if (!app.setSingleInstance("gxde-wallpaper-chooser")) {
+        return -1;
+    }
     // Wayland 下窗口与 .desktop/图标按 app id 关联
     QGuiApplication::setDesktopFileName(QStringLiteral("gxde-wallpaper-chooser"));
 
