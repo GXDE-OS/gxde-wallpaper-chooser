@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     app.setProductIcon(appIcon);
 
     Dtk::Widget::DMainWindow window;
-    window.resize(760, 640);
+    window.resize(800, 640);
     window.setMinimumSize(560, 480);
     window.setWindowTitle(QObject::tr("壁纸与屏保"));
     window.setWindowIcon(appIcon);
