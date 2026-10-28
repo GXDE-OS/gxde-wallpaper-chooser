@@ -1,3 +1,11 @@
+gxde-wallpaper-chooser (0.2.1) unstable; urgency=medium
+
+  * 新增QWidget动画
+  * 禁止窗口最大化
+  * 修改部分控件样式，使其观感不过于扁平
+
+ -- CharOfString <root@charofstring.cc>  Tue, 27 Oct 2026 23:53:02 -0500
+
 gxde-wallpaper-chooser (0.2.0) unstable; urgency=medium
 
   * 新增应用图标与桌面入口；壁纸/锁屏/屏保页签改为 DTitlebar 内的 DTabBar。
