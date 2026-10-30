@@ -2,6 +2,10 @@
 
 #include "wallpaperentry.h"
 
+#include <QCryptographicHash>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QMediaPlayer>
@@ -9,6 +13,7 @@
 #include <QGuiApplication>
 #include <QPainter>
 #include <QPolygon>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
 #include <QVideoFrame>
@@ -20,6 +25,63 @@ namespace GxdeWallpaper {
 ThumbnailProvider::ThumbnailProvider(QObject *parent)
     : QObject(parent)
 {
+    m_cacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)
+        + QStringLiteral("/GXDE/gxde-wallpaper-chooser/thumbnails/");
+    cleanupDiskCache();
+}
+
+QString ThumbnailProvider::diskCachePath(const QString &path, const QSize &target) const
+{
+    const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
+    const QString local = localPathOf(path);
+    const QFileInfo info(local);
+    const qint64 mtime = info.exists() ? info.lastModified().toSecsSinceEpoch() : 0;
+    const qint64 size = info.exists() ? info.size() : -1;
+
+    // 指纹随源文件内容（mtime/size）与目标尺寸/dpr 变化；文件更新后自动失效
+    const QString fingerprint = QStringLiteral("%1|%2|%3|%4|%5|%6")
+        .arg(local)
+        .arg(mtime)
+        .arg(size)
+        .arg(target.width())
+        .arg(target.height())
+        .arg(QString::number(dpr, 'f', 2));
+    const QByteArray hash =
+        QCryptographicHash::hash(fingerprint.toUtf8(), QCryptographicHash::Sha1).toHex();
+    return m_cacheDir + QString::fromLatin1(hash) + QStringLiteral(".png");
+}
+
+void ThumbnailProvider::saveToDisk(const QString &diskPath, const QPixmap &pixmap)
+{
+    if (pixmap.isNull())
+        return;
+    QDir().mkpath(QFileInfo(diskPath).absolutePath());
+
+    // 以设备像素分辨率落盘，重载时再按当前 dpr 设回，避免 HiDPI 模糊
+    const qreal dpr = pixmap.devicePixelRatio();
+    QImage img(qRound(pixmap.width() * dpr), qRound(pixmap.height() * dpr),
+               QImage::Format_ARGB32_Premultiplied);
+    if (img.isNull())
+        return;
+    img.fill(Qt::transparent);
+    QPainter p(&img);
+    p.drawPixmap(0, 0, pixmap);
+    p.end();
+    img.save(diskPath, "PNG");
+}
+
+void ThumbnailProvider::cleanupDiskCache()
+{
+    QDir dir(m_cacheDir);
+    if (!dir.exists())
+        return;
+    const QDateTime limit = QDateTime::currentDateTime().addDays(-30);
+    const QFileInfoList files =
+        dir.entryInfoList(QStringList() << QStringLiteral("*.png"), QDir::Files);
+    for (const QFileInfo &fi : files) {
+        if (fi.lastModified() < limit)
+            QFile::remove(fi.absoluteFilePath());
+    }
 }
 
 static QString cacheKey(const QString &path, const QSize &target)
@@ -42,8 +104,22 @@ void ThumbnailProvider::request(const QString &path, const QSize &target)
     }
     if (m_inflight.contains(key))
         return;
-    m_inflight.insert(key);
 
+    // 磁盘缓存命中：直接载入，跨会话免解码/抓帧（视频首帧最耗时）
+    const QString disk = diskCachePath(path, target);
+    if (QFile::exists(disk)) {
+        const QImage img(disk);
+        if (!img.isNull()) {
+            const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
+            QPixmap pix = QPixmap::fromImage(img);
+            pix.setDevicePixelRatio(dpr);
+            m_cache.insert(key, pix);
+            emit thumbnailReady(path, pix);
+            return;
+        }
+    }
+
+    m_inflight.insert(key);
     if (isVideoFile(path))
         loadVideoAsync(path, target);
     else
@@ -74,11 +150,12 @@ void ThumbnailProvider::loadAsync(const QString &path, const QSize &target)
         // 回 UI 线程更新缓存并发信号
         QMetaObject::invokeMethod(
             this,
-            [this, path, key, pixmap] {
+            [this, path, key, pixmap, target] {
                 m_inflight.remove(key);
                 if (pixmap.isNull())
                     return;
                 m_cache.insert(key, pixmap);
+                saveToDisk(diskCachePath(path, target), pixmap);
                 emit thumbnailReady(path, pixmap);
             },
             Qt::QueuedConnection);
@@ -167,6 +244,7 @@ void ThumbnailProvider::loadVideoAsync(const QString &path, const QSize &target)
             QPixmap pixmap = QPixmap::fromImage(scaled);
             pixmap.setDevicePixelRatio(dpr);
             m_cache.insert(key, pixmap);
+            saveToDisk(diskCachePath(path, target), pixmap);
             emit thumbnailReady(path, pixmap);
         });
 
@@ -182,6 +260,7 @@ void ThumbnailProvider::loadVideoAsync(const QString &path, const QSize &target)
                 qWarning() << "video thumbnail grab timed out:" << path;
                 const QPixmap placeholder = videoPlaceholder(target, dpr);
                 m_cache.insert(key, placeholder);
+                saveToDisk(diskCachePath(path, target), placeholder);
                 emit thumbnailReady(path, placeholder);
             });
 
@@ -200,6 +279,7 @@ void ThumbnailProvider::loadVideoAsync(const QString &path, const QSize &target)
                 qWarning() << "video thumbnail grab failed:" << path << message;
                 const QPixmap placeholder = videoPlaceholder(target, dpr);
                 m_cache.insert(key, placeholder);
+                saveToDisk(diskCachePath(path, target), placeholder);
                 emit thumbnailReady(path, placeholder);
             });
 
