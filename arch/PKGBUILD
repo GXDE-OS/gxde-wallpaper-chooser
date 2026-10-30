@@ -1,7 +1,7 @@
 # Maintainer: CharOfString <root@charofstring.cc>
 
 pkgname=gxde-wallpaper
-pkgver=0.2.2
+pkgver=0.2.3
 pkgrel=1
 pkgdesc='GXDE wallpaper selecter.'
 arch=('x86_64' 'aarch64' 'loong64' 'riscv64')
