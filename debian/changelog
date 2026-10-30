@@ -1,10 +1,13 @@
-gxde-wallpaper-chooser (0.2.3) UNRELEASED; urgency=medium
+gxde-wallpaper-chooser (0.2.4) UNRELEASED; urgency=medium
 
   * 调整窗口大小以便减少窗口无意义留白
   * feat: 不允许打开多个实例
   * feat: 支持在自定义壁纸板块显示使用过的动态壁纸
+  * feat: 新增国际化支持
+  * feat: 支持缓存动态壁纸缩略图以提升运行速度
+  * feat: 支持设置纯色壁纸
 
- -- gfdgd_xi <3025613752@qq.com>  Fri, 30 Oct 2026 09:16:43 +0800
+ -- gfdgd_xi <3025613752@qq.com>  Fri, 30 Oct 2026 23:39:13 +0800
 
 gxde-wallpaper-chooser (0.2.1) unstable; urgency=medium
 
