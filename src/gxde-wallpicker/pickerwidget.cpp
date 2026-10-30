@@ -114,7 +114,7 @@ PickerWidget::PickerWidget(QWidget *parent)
     connect(m_appearance, &AppearanceClient::applyFailed, this,
             [this](const QString &reason) {
                 auto *toast = new Dtk::Widget::DToast(this);
-                toast->setText(tr("应用壁纸失败：%1").arg(reason));
+                toast->setText(tr("Failed to apply wallpaper: %1").arg(reason));
                 toast->setDuration(3000);
                 toast->pop();
                 connect(toast, &Dtk::Widget::DToast::visibleChanged, toast,
@@ -129,7 +129,7 @@ PickerWidget::PickerWidget(QWidget *parent)
             [this](const QString &path, const QString &reason) {
                 Q_UNUSED(path);
                 auto *toast = new Dtk::Widget::DToast(this);
-                toast->setText(tr("应用动态壁纸失败：%1").arg(reason));
+                toast->setText(tr("Failed to apply dynamic wallpaper: %1").arg(reason));
                 toast->setDuration(3000);
                 toast->pop();
                 connect(toast, &Dtk::Widget::DToast::visibleChanged, toast,
@@ -145,7 +145,7 @@ PickerWidget::PickerWidget(QWidget *parent)
             [this](const QString &path, const QString &reason) {
                 Q_UNUSED(path);
                 auto *toast = new Dtk::Widget::DToast(this);
-                toast->setText(tr("应用锁屏壁纸失败：%1").arg(reason));
+                toast->setText(tr("Failed to apply lock screen wallpaper: %1").arg(reason));
                 toast->setDuration(3000);
                 toast->pop();
                 connect(toast, &Dtk::Widget::DToast::visibleChanged, toast,
@@ -179,9 +179,9 @@ void PickerWidget::buildUi()
     m_modeSwitch->setDrawBase(false);
     m_modeSwitch->setAutoHide(false);
     m_modeSwitch->setFixedHeight(40);
-    const int wallpaperIdx = m_modeSwitch->addTab(tr("壁纸"));
-    const int lockIdx = m_modeSwitch->addTab(tr("锁屏"));
-    const int saverIdx = m_modeSwitch->addTab(tr("屏保"));
+    const int wallpaperIdx = m_modeSwitch->addTab(tr("Wallpaper"));
+    const int lockIdx = m_modeSwitch->addTab(tr("Lock Screen"));
+    const int saverIdx = m_modeSwitch->addTab(tr("Screensaver"));
     for (int i = 0; i < m_modeSwitch->count(); ++i) {
         m_modeSwitch->setTabMinimumSize(i, QSize(72, 32));
         m_modeSwitch->setTabMaximumSize(i, QSize(120, 40));
@@ -236,8 +236,8 @@ void PickerWidget::buildUi()
     // 子布局不设间距会继承 root 的 0，两个按钮会贴在一起
     buttonRow->setSpacing(10);
     buttonRow->addStretch();
-    auto *cancelBtn = new QPushButton(tr("取消"), this);
-    auto *saveBtn = new Dtk::Widget::DSuggestButton(tr("保存修改"), this);
+    auto *cancelBtn = new QPushButton(tr("Cancel"), this);
+    auto *saveBtn = new Dtk::Widget::DSuggestButton(tr("Save Changes"), this);
     buttonRow->addWidget(cancelBtn);
     buttonRow->addWidget(saveBtn);
     root->addLayout(buttonRow);

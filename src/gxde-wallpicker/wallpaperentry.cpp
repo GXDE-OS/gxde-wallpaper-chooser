@@ -161,7 +161,7 @@ void classifyEntry(WallpaperEntry &entry)
 
     if (!library.isEmpty() && QDir(path).canonicalPath().startsWith(library)) {
         entry.sourceKey = QStringLiteral("custom");
-        entry.group = QStringLiteral("自定义壁纸");
+        entry.group = QStringLiteral("Custom Wallpapers");
         return;
     }
 

@@ -68,8 +68,15 @@ int main(int argc, char *argv[])
 {
     Dtk::Widget::DApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("gxde-wallpaper-chooser"));
-    app.setApplicationDisplayName(QObject::tr("壁纸与屏保"));
     app.setOrganizationName(QStringLiteral("GXDE"));
+    // 关于对话框依赖此版本号；同时 loadTranslator 会加载 dtkwidget 自带的
+    // 翻译（TitleBarMenu 上下文里 About→关于、Exit→退出），修复标题栏
+    // 右上角菜单只有英文的问题。
+    app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
+    app.loadTranslator();
+    // 必须放在 loadTranslator() 之后：翻译器未安装时 tr() 会原样返回英文，
+    // 该显示名还会被子窗口继承，过早设置会留下英文标题。
+    app.setApplicationDisplayName(QObject::tr("Wallpaper and Screensaver"));
     if (!app.setSingleInstance("gxde-wallpaper-chooser")) {
         return -1;
     }
@@ -89,7 +96,7 @@ int main(int argc, char *argv[])
     Dtk::Widget::DMainWindow window;
     window.resize(800, 640);
     window.setMinimumSize(560, 480);
-    window.setWindowTitle(QObject::tr("壁纸与屏保"));
+    window.setWindowTitle(QObject::tr("Wallpaper and Screensaver"));
     window.setWindowIcon(appIcon);
 
     auto *picker = new GxdeWallpaper::PickerWidget(&window);

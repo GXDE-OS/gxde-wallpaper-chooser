@@ -67,7 +67,7 @@ static WallpaperEntry makeSolidEntry(const QColor &color, bool custom = false)
     e.uri = e.path;
     e.isVideo = false;
     e.sourceKey = QStringLiteral("solid");
-    e.group = QStringLiteral("纯色壁纸");
+    e.group = QStringLiteral("Solid Color Wallpapers");
     return e;
 }
 
@@ -118,7 +118,7 @@ static void showWarning(QWidget *parent, const QString &title,
 {
     Dtk::Widget::DDialog dialog(title, message, parent);
     dialog.setIcon(QIcon::fromTheme(QStringLiteral("dialog-warning")));
-    dialog.addButton(QCoreApplication::translate("WallpaperPage", "确定"), true,
+    dialog.addButton(QCoreApplication::translate("WallpaperPage", "OK"), true,
                      Dtk::Widget::DDialog::ButtonRecommend);
     dialog.exec();
 }
@@ -128,7 +128,7 @@ static bool askConfirm(QWidget *parent, const QString &title,
 {
     Dtk::Widget::DDialog dialog(title, message, parent);
     dialog.setIcon(QIcon::fromTheme(QStringLiteral("dialog-warning")));
-    dialog.addButton(QCoreApplication::translate("WallpaperPage", "取消"));
+    dialog.addButton(QCoreApplication::translate("WallpaperPage", "Cancel"));
     dialog.addButton(confirmText, true, Dtk::Widget::DDialog::ButtonWarning);
     return dialog.exec() == 1;
 }
@@ -139,27 +139,27 @@ struct IntervalOption {
     const char *value;
 };
 static const IntervalOption kIntervals[] = {
-    {"关闭", ""},
-    {"30 秒", "30"},
-    {"1 分钟", "60"},
-    {"5 分钟", "300"},
-    {"10 分钟", "600"},
-    {"15 分钟", "900"},
-    {"30 分钟", "1800"},
-    {"1 小时", "3600"},
-    {"登录时", "login"},
-    {"唤醒时", "wakeup"},
+    {"Off", ""},
+    {"30 seconds", "30"},
+    {"1 minute", "60"},
+    {"5 minutes", "300"},
+    {"10 minutes", "600"},
+    {"15 minutes", "900"},
+    {"30 minutes", "1800"},
+    {"1 hour", "3600"},
+    {"On login", "login"},
+    {"On wake", "wakeup"},
 };
 
 static const struct {
     WallpaperDisplayMethod method;
     const char *label;
 } kMethods[] = {
-    {KeepAspectRatioByExpanding, "填充"},
-    {IgnoreAspectRatio, "拉伸"},
-    {KeepAspectRatio, "适应"},
-    {Center, "居中"},
-    {BackgroundSpanned, "跨屏"},
+    {KeepAspectRatioByExpanding, "Fill"},
+    {IgnoreAspectRatio, "Stretch"},
+    {KeepAspectRatio, "Fit"},
+    {Center, "Center"},
+    {BackgroundSpanned, "Span screens"},
 };
 
 static QString menuText(QString text)
@@ -239,24 +239,24 @@ void WallpaperPage::buildChrome()
 {
     // 标题（Win7 蓝色链接风标题）
     // 不用 DTypographyLabel：DTK 6.0.1 在此环境 changeEvent→setFont 无限递归（栈溢出）
-    m_titleLabel = new QLabel(tr("选择桌面背景"), this);
+    m_titleLabel = new QLabel(tr("Select Desktop Background"), this);
     m_titleLabel->setStyleSheet(QStringLiteral(
         "color: palette(highlight); font-size: 17px; font-weight: 600;"));
     m_rootLayout->addWidget(m_titleLabel);
 
     m_subtitleLabel = new QLabel(
-        tr("单击某个图片使其成为您的桌面背景。"), this);
+        tr("Click an image to set it as your desktop background."), this);
     m_subtitleLabel->setStyleSheet(QStringLiteral("color: #606060;"));
     m_rootLayout->addWidget(m_subtitleLabel);
 
     // 图片位置(L): 来源下拉 + 浏览 + 分类管理
     auto *sourceRow = new QHBoxLayout;
-    m_sourceLabel = new QLabel(tr("图片位置(L):"), this);
+    m_sourceLabel = new QLabel(tr("Picture Location (L):"), this);
     m_sourceCombo = new QComboBox(this);
     m_sourceCombo->setMinimumWidth(200);
-    auto *browseBtn = new QPushButton(tr("浏览(B)..."), this);
-    m_categoryBtn = new QPushButton(tr("分类(C)..."), this);
-    m_categoryBtn->setToolTip(tr("新建、重命名或删除自定义分类；右键壁纸可加入分类"));
+    auto *browseBtn = new QPushButton(tr("Browse (B)..."), this);
+    m_categoryBtn = new QPushButton(tr("Category (C)..."), this);
+    m_categoryBtn->setToolTip(tr("Create, rename or delete custom categories; right-click a wallpaper to add it to a category"));
     sourceRow->addWidget(m_sourceLabel);
     sourceRow->addWidget(m_sourceCombo, 1);
     sourceRow->addSpacing(8);
@@ -286,17 +286,17 @@ void WallpaperPage::buildChrome()
     optionsRow->setContentsMargins(0, 0, 0, 0);
     optionsRow->setSpacing(8);
 
-    auto *methodLabel = new QLabel(tr("图片位置(P):"), this);
+    auto *methodLabel = new QLabel(tr("Picture Location (P):"), this);
     m_methodCombo = new QComboBox(this);
     for (const auto &m : kMethods)
-        m_methodCombo->addItem(QString::fromUtf8(m.label));
+        m_methodCombo->addItem(tr(m.label));
     m_methodCombo->setCurrentIndex(int(m_displaySettings->method()));
-    m_methodCombo->setToolTip(tr("桌面背景的填充方式"));
+    m_methodCombo->setToolTip(tr("Desktop background fill mode"));
 
-    auto *intervalLabel = new QLabel(tr("更改图片时间间隔(N):"), this);
+    auto *intervalLabel = new QLabel(tr("Change Picture Interval (N):"), this);
     m_intervalCombo = new QComboBox(this);
     for (const auto &opt : kIntervals)
-        m_intervalCombo->addItem(QString::fromUtf8(opt.label),
+        m_intervalCombo->addItem(tr(opt.label),
                                  QString::fromUtf8(opt.value));
     // 初始化选中当前轮播策略
     const QString policy = m_appearance->slideshowPolicy();
@@ -330,13 +330,13 @@ void WallpaperPage::buildChrome()
 
     // 浏览：文件夹（加入来源）或单个图片/动态壁纸（立即应用）
     auto *browseMenu = new QMenu(browseBtn);
-    browseMenu->addAction(tr("选择文件夹(F)..."), this, &WallpaperPage::browseFolder);
+    browseMenu->addAction(tr("Select Folder (F)..."), this, &WallpaperPage::browseFolder);
     m_browseFileAction = browseMenu->addAction(
-        tr("选择图片或动态壁纸(P)..."), this, &WallpaperPage::browseWallpaperFile);
+        tr("Select Image or Dynamic Wallpaper (P)..."), this, &WallpaperPage::browseWallpaperFile);
     browseBtn->setMenu(browseMenu);
 
     // 拖拽悬停提示遮罩（对鼠标事件透明，拖拽事件继续落到本页）
-    m_dropOverlay = new QLabel(tr("松开以设置为壁纸"), this);
+    m_dropOverlay = new QLabel(tr("Release to set as wallpaper"), this);
     m_dropOverlay->setAlignment(Qt::AlignCenter);
     // 用 GXDE 主题色（调色板 Highlight）；半透明底色 QSS 的 palette() 表达不了，单独拼
     const QColor accent = palette().color(QPalette::Highlight);
@@ -356,15 +356,15 @@ void WallpaperPage::buildChrome()
 void WallpaperPage::updateTargetUi()
 {
     const bool lock = isLockTarget();
-    m_titleLabel->setText(lock ? tr("选择锁屏背景") : tr("选择桌面背景"));
+    m_titleLabel->setText(lock ? tr("Select Lock Screen Background") : tr("Select Desktop Background"));
     m_subtitleLabel->setText(lock
-        ? tr("单击某个图片使其成为您的锁屏背景。")
-        : tr("单击某个图片使其成为您的桌面背景。"));
+        ? tr("Click an image to set it as your lock screen background.")
+        : tr("Click an image to set it as your desktop background."));
     // 显示方式 / 轮播只作用于桌面壁纸
     m_optionsBar->setVisible(!lock);
     if (m_browseFileAction) {
-        m_browseFileAction->setText(lock ? tr("选择图片(P)...")
-                                         : tr("选择图片或动态壁纸(P)..."));
+        m_browseFileAction->setText(lock ? tr("Select Image (P)...")
+                                         : tr("Select Image or Dynamic Wallpaper (P)..."));
     }
 }
 
@@ -432,16 +432,16 @@ void WallpaperPage::populateSources()
 {
     const QString previous = m_sourceFilter;
     m_sourceCombo->clear();
-    m_sourceCombo->addItem(tr("全部壁纸"), QString());
-    m_sourceCombo->addItem(tr("系统壁纸"), QStringLiteral("system"));
-    m_sourceCombo->addItem(tr("自定义壁纸"), QStringLiteral("custom"));
+    m_sourceCombo->addItem(tr("All Wallpapers"), QString());
+    m_sourceCombo->addItem(tr("System Wallpapers"), QStringLiteral("system"));
+    m_sourceCombo->addItem(tr("Custom Wallpapers"), QStringLiteral("custom"));
 
     // 用户自定义分类（不是来源目录，而是壁纸的虚拟归类）
     const QStringList categoryNames = m_categories->names();
     if (!categoryNames.isEmpty()) {
         m_sourceCombo->insertSeparator(m_sourceCombo->count());
         for (const QString &name : categoryNames) {
-            m_sourceCombo->addItem(tr("分类：%1").arg(name),
+            m_sourceCombo->addItem(tr("Category: %1").arg(name),
                                    QStringLiteral("category:") + name);
         }
     }
@@ -516,7 +516,7 @@ void WallpaperPage::rebuildGroups()
                             && m_categories->inCategory(name, entry.path))
                         entries << entry;
                 }
-                appendGroup(tr("分类：%1").arg(name), entries);
+                appendGroup(tr("Category: %1").arg(name), entries);
             }
         }
 
@@ -540,11 +540,13 @@ void WallpaperPage::rebuildGroups()
                 normalGroups.append({entry.group, QList<WallpaperEntry>{entry}});
         }
         for (const auto &group : normalGroups)
-            appendGroup(group.first, group.second);
+            appendGroup(QCoreApplication::translate("WallpaperPage",
+                                                   group.first.toUtf8().constData()),
+                        group.second);
 
         // 纯色壁纸分组：仅「全部壁纸」视图，置于自定义/系统壁纸之后
         if (m_sourceFilter.isEmpty())
-            appendGroup(tr("纯色壁纸"), buildSolidEntries());
+            appendGroup(tr("Solid Color Wallpapers"), buildSolidEntries());
     }
 
     const QString currentPath = currentHighlightPath();
@@ -572,12 +574,12 @@ void WallpaperPage::rebuildGroups()
             if (isSolidColorPath(entry.path)) {
                 // 纯色条目：缩略图内联生成，不入分类、不请求缩略图
                 if (isCustomColorPath(entry.path)) {
-                    item->setToolTip(tr("自定义颜色…"));
+                    item->setToolTip(tr("Custom Color…"));
                     item->setPixmap(customColorThumbnail(QSize(156, 96)));
                 } else {
                     const QColor color = solidColorOf(entry.path);
                     item->setToolTip(
-                        tr("纯色：%1").arg(color.name(QColor::HexRgb).toUpper()));
+                        tr("Solid Color: %1").arg(color.name(QColor::HexRgb).toUpper()));
                     item->setPixmap(solidColorThumbnail(color, QSize(156, 96)));
                 }
                 connect(item, &ThumbnailItem::contextMenuRequested, this,
@@ -586,7 +588,7 @@ void WallpaperPage::rebuildGroups()
                 continue;
             }
 
-            item->setToolTip(tr("%1\n右键可加入分类").arg(entry.path));
+            item->setToolTip(tr("%1\nRight-click to add to a category").arg(entry.path));
             connect(item, &ThumbnailItem::contextMenuRequested, this,
                     &WallpaperPage::showItemContextMenu);
             section->addItem(item);
@@ -640,8 +642,8 @@ void WallpaperPage::applyWallpaper(const QString &path)
         }
         realPath = generateSolidColorWallpaper(color);
         if (realPath.isEmpty()) {
-            showWarning(this, tr("无法设置纯色壁纸"),
-                        tr("生成纯色壁纸失败。"));
+            showWarning(this, tr("Cannot set solid color wallpaper"),
+                        tr("Failed to generate solid color wallpaper."));
             return;
         }
         m_currentSolidPath = solidColorEntryPath(color);
@@ -652,8 +654,8 @@ void WallpaperPage::applyWallpaper(const QString &path)
 
     if (isLockTarget()) {
         if (isVideoFile(realPath)) {
-            showWarning(this, tr("无法设置锁屏壁纸"),
-                        tr("锁屏壁纸仅支持静态图片，不支持动态壁纸。"));
+            showWarning(this, tr("Cannot set lock screen wallpaper"),
+                        tr("Lock screen wallpaper only supports static images, not dynamic wallpapers."));
             return;
         }
         // 乐观高亮；失败时 PickerWidget 会回读 gxdm 的真实状态
@@ -747,7 +749,7 @@ QColor WallpaperPage::pickCustomColor()
     const QColor initial = m_customSolidColors.isEmpty()
         ? QColor(255, 255, 255)
         : m_customSolidColors.last();
-    return QColorDialog::getColor(initial, this, tr("选择纯色壁纸颜色"));
+    return QColorDialog::getColor(initial, this, tr("Select Solid Color"));
 }
 
 void WallpaperPage::showSolidContextMenu(const QString &path,
@@ -760,7 +762,7 @@ void WallpaperPage::showSolidContextMenu(const QString &path,
         return; // 内置预设色不提供右键菜单
 
     QMenu menu(this);
-    menu.addAction(tr("删除此颜色"), this, [this, color] {
+    menu.addAction(tr("Delete this color"), this, [this, color] {
         m_customSolidColors.removeAll(color);
         if (m_currentSolidPath == solidColorEntryPath(color))
             m_currentSolidPath.clear();
@@ -773,7 +775,7 @@ void WallpaperPage::showSolidContextMenu(const QString &path,
 void WallpaperPage::browseFolder()
 {
     Dtk::Widget::DFileDialog dialog(
-        this, tr("选择图片位置"), QStringLiteral("/usr/share/wallpapers"));
+        this, tr("Select Picture Location"), QStringLiteral("/usr/share/wallpapers"));
     dialog.setFileMode(QFileDialog::Directory);
     dialog.setOption(QFileDialog::ShowDirsOnly, true);
     if (dialog.exec() != QDialog::Accepted)
@@ -793,18 +795,18 @@ void WallpaperPage::browseWallpaperFile()
 
     QStringList nameFilters;
     if (isLockTarget()) {
-        nameFilters << tr("图片 (%1)").arg(images.join(QLatin1Char(' ')))
-                    << tr("所有文件 (*)");
+        nameFilters << tr("Images (%1)").arg(images.join(QLatin1Char(' ')))
+                    << tr("All Files (*)");
     } else {
-        nameFilters << tr("图片与动态壁纸 (%1)")
+        nameFilters << tr("Images and Dynamic Wallpapers (%1)")
                            .arg((images + videos).join(QLatin1Char(' ')))
-                    << tr("图片 (%1)").arg(images.join(QLatin1Char(' ')))
-                    << tr("动态壁纸 (%1)").arg(videos.join(QLatin1Char(' ')))
-                    << tr("所有文件 (*)");
+                    << tr("Images (%1)").arg(images.join(QLatin1Char(' ')))
+                    << tr("Dynamic Wallpapers (%1)").arg(videos.join(QLatin1Char(' ')))
+                    << tr("All Files (*)");
     }
 
     Dtk::Widget::DFileDialog dialog(
-        this, isLockTarget() ? tr("选择锁屏图片") : tr("选择图片或动态壁纸"),
+        this, isLockTarget() ? tr("Select Lock Screen Image") : tr("Select Image or Dynamic Wallpaper"),
         pictures.isEmpty() ? QDir::homePath() : pictures);
     dialog.setFileMode(QFileDialog::ExistingFile);
     dialog.setAcceptMode(QFileDialog::AcceptOpen);
@@ -835,13 +837,13 @@ void WallpaperPage::applyExternalWallpaper(const QString &pathOrUrl)
     if (path.isEmpty() || !QFileInfo::exists(path))
         return;
     if (!isSupportedWallpaperFile(path)) {
-        showWarning(this, tr("无法设置壁纸"),
-                    tr("“%1”不是可用的图片或动态壁纸文件。").arg(path));
+        showWarning(this, tr("Cannot set wallpaper"),
+                    tr("The file %1 is not a valid image or dynamic wallpaper.").arg(path));
         return;
     }
     if (isLockTarget() && isVideoFile(path)) {
-        showWarning(this, tr("无法设置锁屏壁纸"),
-                    tr("锁屏壁纸仅支持静态图片，不支持动态壁纸。"));
+        showWarning(this, tr("Cannot set lock screen wallpaper"),
+                    tr("Lock screen wallpaper only supports static images, not dynamic wallpapers."));
         return;
     }
 
@@ -936,12 +938,12 @@ QString WallpaperPage::promptCategoryName(const QString &title,
 {
     bool ok = false;
     const QString name = Dtk::Widget::DInputDialog::getText(
-        this, title, tr("分类名称："), QLineEdit::Normal, initial, &ok).trimmed();
+        this, title, tr("Category Name:"), QLineEdit::Normal, initial, &ok).trimmed();
     if (!ok || name.isEmpty())
         return QString();
     if (m_categories->contains(name) && name != initial) {
-        showWarning(this, tr("分类已存在"),
-                    tr("名为“%1”的分类已存在。").arg(name));
+        showWarning(this, tr("Category already exists"),
+                    tr("A category named %1 already exists.").arg(name));
         return QString();
     }
     return name;
@@ -949,31 +951,31 @@ QString WallpaperPage::promptCategoryName(const QString &title,
 
 void WallpaperPage::createCategoryInteractive()
 {
-    const QString name = promptCategoryName(tr("新建分类"));
+    const QString name = promptCategoryName(tr("New Category"));
     if (name.isEmpty())
         return;
     if (!m_categories->create(name)) {
-        showWarning(this, tr("无法创建分类"),
-                    tr("分类“%1”创建失败。").arg(name));
+        showWarning(this, tr("Cannot create category"),
+                    tr("Failed to create category %1.").arg(name));
         return;
     }
     refreshCategories();
     QToolTip::showText(
         m_categoryBtn->mapToGlobal(QPoint(m_categoryBtn->width() / 2,
                                           m_categoryBtn->height())),
-        tr("已创建分类“%1”，右键任意壁纸即可加入。").arg(name),
+        tr("Created category %1; right-click any wallpaper to add it.").arg(name),
         m_categoryBtn, QRect(), 4000);
 }
 
 void WallpaperPage::createCategoryForPath(const QString &path)
 {
-    const QString name = promptCategoryName(tr("新建分类"));
+    const QString name = promptCategoryName(tr("New Category"));
     if (name.isEmpty())
         return;
     if (!m_categories->create(name)
             || !m_categories->assign(name, path)) {
-        showWarning(this, tr("无法创建分类"),
-                    tr("分类“%1”创建失败。").arg(name));
+        showWarning(this, tr("Cannot create category"),
+                    tr("Failed to create category %1.").arg(name));
         return;
     }
     refreshCategories();
@@ -981,12 +983,12 @@ void WallpaperPage::createCategoryForPath(const QString &path)
 
 void WallpaperPage::renameCategoryInteractive(const QString &name)
 {
-    const QString newName = promptCategoryName(tr("重命名分类"), name);
+    const QString newName = promptCategoryName(tr("Rename Category"), name);
     if (newName.isEmpty() || newName == name)
         return;
     if (!m_categories->rename(name, newName)) {
-        showWarning(this, tr("无法重命名分类"),
-                    tr("分类“%1”重命名失败。").arg(name));
+        showWarning(this, tr("Cannot rename category"),
+                    tr("Failed to rename category %1.").arg(name));
         return;
     }
     if (m_sourceFilter == QStringLiteral("category:") + name)
@@ -996,13 +998,13 @@ void WallpaperPage::renameCategoryInteractive(const QString &name)
 
 void WallpaperPage::deleteCategoryInteractive(const QString &name)
 {
-    if (!askConfirm(this, tr("删除分类"),
-                    tr("确定删除分类“%1”？壁纸文件不会被删除。").arg(name),
-                    tr("删除")))
+    if (!askConfirm(this, tr("Delete Category"),
+                    tr("Delete category %1? Wallpaper files will not be removed.").arg(name),
+                    tr("Delete")))
         return;
     if (!m_categories->remove(name)) {
-        showWarning(this, tr("无法删除分类"),
-                    tr("分类“%1”删除失败。").arg(name));
+        showWarning(this, tr("Cannot delete category"),
+                    tr("Failed to delete category %1.").arg(name));
         return;
     }
     if (m_sourceFilter == QStringLiteral("category:") + name)
@@ -1019,28 +1021,28 @@ void WallpaperPage::refreshCategories()
 void WallpaperPage::showCategoryMenu()
 {
     QMenu menu(this);
-    menu.addAction(tr("新建分类(N)..."), this,
+    menu.addAction(tr("New Category (N)..."), this,
                    &WallpaperPage::createCategoryInteractive);
 
     const QStringList names = m_categories->names();
     if (names.isEmpty()) {
         menu.addSeparator();
-        QAction *hint = menu.addAction(tr("创建分类后，右键壁纸即可加入"));
+        QAction *hint = menu.addAction(tr("After creating a category, right-click a wallpaper to add it"));
         hint->setEnabled(false);
     } else {
         menu.addSeparator();
         for (const QString &name : names) {
             QMenu *sub = menu.addMenu(menuText(name));
-            sub->addAction(tr("查看此分类"), this, [this, name] {
+            sub->addAction(tr("View this category"), this, [this, name] {
                 m_sourceFilter = QStringLiteral("category:") + name;
                 const int idx = m_sourceCombo->findData(m_sourceFilter);
                 if (idx >= 0)
                     m_sourceCombo->setCurrentIndex(idx);
                 rebuildGroups();
             });
-            sub->addAction(tr("重命名..."), this,
+            sub->addAction(tr("Rename..."), this,
                            [this, name] { renameCategoryInteractive(name); });
-            sub->addAction(tr("删除分类"), this,
+            sub->addAction(tr("Delete Category"), this,
                            [this, name] { deleteCategoryInteractive(name); });
         }
     }
@@ -1053,13 +1055,13 @@ void WallpaperPage::showItemContextMenu(const QString &path,
                                         const QPoint &globalPos)
 {
     QMenu menu(this);
-    QMenu *assignMenu = menu.addMenu(tr("加入分类"));
+    QMenu *assignMenu = menu.addMenu(tr("Add to Category"));
 
     const QStringList names = m_categories->names();
     const QStringList assigned = m_categories->categoriesFor(path);
 
     if (names.isEmpty()) {
-        QAction *hint = assignMenu->addAction(tr("（暂无分类，请先新建）"));
+        QAction *hint = assignMenu->addAction(tr("No categories yet; create one first"));
         hint->setEnabled(false);
     } else {
         for (const QString &name : names) {
@@ -1077,11 +1079,11 @@ void WallpaperPage::showItemContextMenu(const QString &path,
         }
     }
     assignMenu->addSeparator();
-    assignMenu->addAction(tr("新建分类并加入..."), this,
+    assignMenu->addAction(tr("New Category and Add..."), this,
                           [this, path] { createCategoryForPath(path); });
 
     if (!assigned.isEmpty()) {
-        menu.addAction(tr("移出所有分类"), this, [this, path, assigned] {
+        menu.addAction(tr("Remove from All Categories"), this, [this, path, assigned] {
             for (const QString &name : assigned)
                 m_categories->unassign(name, path);
             refreshCategories();
@@ -1089,7 +1091,7 @@ void WallpaperPage::showItemContextMenu(const QString &path,
     }
 
     menu.addSeparator();
-    menu.addAction(isLockTarget() ? tr("设为锁屏壁纸") : tr("设为桌面壁纸"),
+    menu.addAction(isLockTarget() ? tr("Set as Lock Screen Wallpaper") : tr("Set as Desktop Wallpaper"),
                    this, [this, path] { applyWallpaper(path); });
 
     menu.exec(globalPos);

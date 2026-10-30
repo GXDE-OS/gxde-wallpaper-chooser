@@ -94,7 +94,7 @@ bool AppearanceClient::available() const
 void AppearanceClient::fetchWallpapers()
 {
     if (!available()) {
-        emit listFailed(QStringLiteral("Appearance 服务不可用"));
+        emit listFailed(tr("Appearance service unavailable"));
         return;
     }
 
@@ -122,7 +122,7 @@ void AppearanceClient::onListFinished()
     }
     const QDBusReply<QString> reply(watcher->reply());
     if (!reply.isValid()) {
-        emit listFailed(QStringLiteral("List 返回无效"));
+        emit listFailed(tr("List returned an invalid result"));
         return;
     }
     emit wallpapersReady(reply.value());

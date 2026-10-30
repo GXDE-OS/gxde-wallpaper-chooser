@@ -107,7 +107,7 @@ void ScreensaverClient::fetchScreensavers()
     const QVariant raw = getProp(QStringLiteral("allScreenSaver"));
     const QStringList names = raw.toStringList();
     if (names.isEmpty()) {
-        emit failed(QStringLiteral("allScreenSaver"), QStringLiteral("屏保列表为空"));
+        emit failed(QStringLiteral("allScreenSaver"), tr("Screensaver list is empty"));
         return;
     }
     emit screensaversReady(names);
@@ -146,7 +146,7 @@ void ScreensaverClient::startPreview()
     // 预览应容忍鼠标移动，与控制中心的预览语义一致
     const QString name = currentScreensaver();
     if (name.isEmpty()) {
-        emit failed(QStringLiteral("Preview"), QStringLiteral("当前没有可选屏保"));
+        emit failed(QStringLiteral("Preview"), tr("No screensaver available to preview"));
         return;
     }
     callPreview(name, false);

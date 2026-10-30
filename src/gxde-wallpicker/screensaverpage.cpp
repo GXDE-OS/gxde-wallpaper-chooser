@@ -24,13 +24,13 @@ struct WaitOption {
     int seconds;
 };
 static const WaitOption kWaits[] = {
-    {"1 分钟", 60},
-    {"5 分钟", 300},
-    {"10 分钟", 600},
-    {"15 分钟", 900},
-    {"30 分钟", 1800},
-    {"1 小时", 3600},
-    {"从不", 0},
+    {"1 minute", 60},
+    {"5 minutes", 300},
+    {"10 minutes", 600},
+    {"15 minutes", 900},
+    {"30 minutes", 1800},
+    {"1 hour", 3600},
+    {"Never", 0},
 };
 
 ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
@@ -45,12 +45,12 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
     layout->setSpacing(8);
 
     // 不用 DTypographyLabel：DTK 6.0.1 在此环境 changeEvent→setFont 无限递归（栈溢出）
-    auto *title = new QLabel(tr("屏幕保护程序"), this);
+    auto *title = new QLabel(tr("Screensaver"), this);
     title->setStyleSheet(QStringLiteral(
         "color: palette(highlight); font-size: 17px; font-weight: 600;"));
     layout->addWidget(title);
 
-    auto *subtitle = new QLabel(tr("单击某个屏保使其立即生效。"), this);
+    auto *subtitle = new QLabel(tr("Click a screensaver to apply it immediately."), this);
     subtitle->setStyleSheet(QStringLiteral("color: #606060;"));
     layout->addWidget(subtitle);
 
@@ -71,15 +71,15 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
     // 底部：预览 + 等待时长 + 唤醒密码（Win7 顺序：预览在等待之前）
     auto *optionsRow = new QHBoxLayout;
     optionsRow->setSpacing(8);
-    auto *previewBtn = new QPushButton(tr("预览(P)"), this);
-    previewBtn->setToolTip(tr("全屏预览当前屏保，点击或按键退出"));
+    auto *previewBtn = new QPushButton(tr("Preview (P)"), this);
+    previewBtn->setToolTip(tr("Preview the current screensaver in full screen; click or press any key to exit"));
     connect(previewBtn, &QPushButton::clicked, this,
             [this] { m_screensaver->startPreview(); });
-    auto *waitLabel = new QLabel(tr("等待(W):"), this);
+    auto *waitLabel = new QLabel(tr("Wait (W):"), this);
     m_waitCombo = new QComboBox(this);
     for (const auto &w : kWaits)
-        m_waitCombo->addItem(QString::fromUtf8(w.label), w.seconds);
-    m_lockCheck = new QCheckBox(tr("唤醒时需要密码"), this);
+        m_waitCombo->addItem(tr(w.label), w.seconds);
+    m_lockCheck = new QCheckBox(tr("Require password on wake"), this);
     optionsRow->addWidget(previewBtn);
     optionsRow->addWidget(waitLabel);
     optionsRow->addWidget(m_waitCombo);
@@ -146,7 +146,7 @@ void ScreensaverPage::populateGrid(const QStringList &names)
     }
     m_itemsByName.clear();
 
-    m_grid = new GroupSection(tr("屏幕保护程序"), names.size(), m_scrollContent);
+    m_grid = new GroupSection(tr("Screensaver"), names.size(), m_scrollContent);
     connect(m_grid, &GroupSection::itemClicked, this,
             [this](const QString &path) {
                 // path 即屏保名（构造时以名字作 path）

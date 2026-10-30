@@ -62,7 +62,33 @@ add_executable(gxde-wallpaper-chooser
     resources.qrc
 )
 
+# 把项目版本号传入源码，供关于对话框显示
+target_compile_definitions(gxde-wallpaper-chooser PRIVATE
+    PROJECT_VERSION="${PROJECT_VERSION}"
+)
+
 target_link_libraries(gxde-wallpaper-chooser PRIVATE gxde-wallpicker)
+
+# 翻译：由 translations/gxde-wallpaper-chooser_zh_CN.ts 用 lrelease（Qt6）生成
+# .qm，安装到 share/gxde-wallpaper-chooser/translations/；DApplication::loadTranslator()
+# 会按应用名在此目录查找 gxde-wallpaper-chooser_zh_CN.qm。
+# 若构建环境没有 lrelease，则回退安装仓库内已提交的 .qm。
+set(TS_FILE ${CMAKE_SOURCE_DIR}/translations/gxde-wallpaper-chooser_zh_CN.ts)
+set(QM_FILE ${CMAKE_CURRENT_BINARY_DIR}/gxde-wallpaper-chooser_zh_CN.qm)
+set(COMMITTED_QM ${CMAKE_SOURCE_DIR}/translations/gxde-wallpaper-chooser_zh_CN.qm)
+find_program(LRELEASE_EXECUTABLE NAMES lrelease
+    HINTS /usr/lib/qt6/bin /usr/lib/x86_64-linux-gnu/qt6/bin)
+if(LRELEASE_EXECUTABLE AND EXISTS ${TS_FILE})
+    add_custom_command(OUTPUT ${QM_FILE}
+        COMMAND ${LRELEASE_EXECUTABLE} ${TS_FILE} -qm ${QM_FILE}
+        DEPENDS ${TS_FILE}
+        COMMENT "Generating translation QM"
+        VERBATIM)
+    add_custom_target(translations_qm ALL DEPENDS ${QM_FILE})
+    install(FILES ${QM_FILE} DESTINATION share/gxde-wallpaper-chooser/translations)
+else()
+    install(FILES ${COMMITTED_QM} DESTINATION share/gxde-wallpaper-chooser/translations)
+endif()
 
 install(TARGETS gxde-wallpicker gxde-wallpaper-chooser
     ARCHIVE DESTINATION lib

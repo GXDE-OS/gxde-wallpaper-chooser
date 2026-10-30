@@ -66,12 +66,12 @@ void LockWallpaperClient::applyLockWallpaper(const QString &path)
 {
     const QString localPath = GxdeWallpaper::localPathOf(path);
     if (localPath.isEmpty() || !GxdeWallpaper::isImageFile(localPath)) {
-        emit applyFailed(path, tr("锁屏壁纸仅支持静态图片"));
+        emit applyFailed(path, tr("Lock screen wallpaper only supports static images"));
         return;
     }
 
     if (!available()) {
-        emit applyFailed(path, tr("锁屏壁纸服务不可用（top.gxde.DisplayManager）"));
+        emit applyFailed(path, tr("Lock screen wallpaper service unavailable (top.gxde.DisplayManager)"));
         return;
     }
 
@@ -80,7 +80,7 @@ void LockWallpaperClient::applyLockWallpaper(const QString &path)
     const QString persisted = info.canonicalFilePath().isEmpty()
         ? info.absoluteFilePath() : info.canonicalFilePath();
     if (persisted.isEmpty()) {
-        emit applyFailed(path, tr("无法保存锁屏壁纸"));
+        emit applyFailed(path, tr("Failed to save lock screen wallpaper"));
         return;
     }
 
@@ -103,11 +103,11 @@ void LockWallpaperClient::applyLockWallpaper(const QString &path)
 
                 const QDBusReply<bool> reply(w->reply());
                 if (!reply.isValid()) {
-                    emit applyFailed(path, tr("锁屏壁纸服务返回无效结果"));
+                    emit applyFailed(path, tr("Lock screen wallpaper service returned invalid result"));
                     return;
                 }
                 if (!reply.value()) {
-                    emit applyFailed(path, tr("锁屏壁纸服务拒绝设置"));
+                    emit applyFailed(path, tr("Lock screen wallpaper service refused the setting"));
                     return;
                 }
 
@@ -119,7 +119,7 @@ void LockWallpaperClient::applyLockWallpaper(const QString &path)
 void LockWallpaperClient::clearLockWallpaper()
 {
     if (!available()) {
-        emit applyFailed(QString(), tr("锁屏壁纸服务不可用（top.gxde.DisplayManager）"));
+        emit applyFailed(QString(), tr("Lock screen wallpaper service unavailable (top.gxde.DisplayManager)"));
         return;
     }
 
