@@ -238,6 +238,17 @@ static void appendScan(const QString &root, bool recursive, const QStringList &f
     }
 }
 
+// 自定义壁纸库内的视频动态壁纸（Deletable 标记与库内其它条目一致）。
+// daemon List 只返回库内图片，历史动态壁纸靠这里补进列表。
+QList<WallpaperEntry> scanLibraryDynamicWallpapers()
+{
+    QList<WallpaperEntry> result;
+    QSet<QString> seen;
+    appendScan(wallpaperLibraryDir(), true, videoNameFilters(), true, true,
+               result, seen);
+    return result;
+}
+
 QList<WallpaperEntry> scanLocalWallpapers()
 {
     QList<WallpaperEntry> result;

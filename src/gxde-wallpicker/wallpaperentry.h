@@ -33,6 +33,10 @@ QList<WallpaperEntry> parseListReply(const QString &replyJson);
 // D-Bus 不可用时的本机扫描回退：扫描系统壁纸目录 + 自定义壁纸库。
 QList<WallpaperEntry> scanLocalWallpapers();
 
+// 自定义壁纸库内的视频动态壁纸（daemon List 不返回库内视频，
+// 壁纸页用它把历史动态壁纸并入「自定义壁纸」）。
+QList<WallpaperEntry> scanLibraryDynamicWallpapers();
+
 // 指定目录扫描（「浏览」添加的来源），只取顶层图片文件。
 QList<WallpaperEntry> scanDirectory(const QString &dirPath);
 

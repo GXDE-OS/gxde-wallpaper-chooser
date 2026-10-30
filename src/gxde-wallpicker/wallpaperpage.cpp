@@ -123,6 +123,9 @@ WallpaperPage::WallpaperPage(AppearanceClient *appearance,
     connect(m_appearance, &AppearanceClient::wallpapersReady, this,
             [this](const QString &json) {
                 m_entries = parseListReply(json);
+                // daemon List 不返回库内视频：把历史动态壁纸并入（与库内
+                // 图片同属「自定义壁纸」来源/分组），保证重载后仍可见
+                m_entries = mergeEntries(m_entries, scanLibraryDynamicWallpapers());
                 populateSources();
                 rebuildGroups();
             });
