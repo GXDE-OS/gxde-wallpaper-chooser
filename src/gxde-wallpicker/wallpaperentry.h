@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include <QColor>
 #include <QList>
 #include <QString>
 
@@ -72,5 +73,21 @@ QString localPathOf(const QString &pathOrUrl);
 // 把文件拷入自定义壁纸库（md5 命名，已存在直接复用），返回库内路径。
 // 系统壁纸目录内的文件不拷贝，返回其 canonical 路径；不可读返回原路径。
 QString persistWallpaperToLibrary(const QString &pathOrUrl);
+
+// 纯色壁纸：用虚拟路径标识，不对应真实文件，缩略图/应用均特判。
+// 预设色：solidcolor:#RRGGBB；自定义入口：solidcolor:custom。
+bool isSolidColorPath(const QString &path);
+bool isCustomColorPath(const QString &path);
+QColor solidColorOf(const QString &path);
+QString solidColorEntryPath(const QColor &color);
+QString customColorEntryPath();
+
+// 生成（已存在则复用）指定颜色的纯色 PNG，返回本地路径；失败返回空串。
+// 文件落在独立目录，不进入「自定义壁纸」扫描范围，避免重复成普通壁纸。
+QString generateSolidColorWallpaper(const QColor &color);
+
+// 若 localPath 是上述生成的纯色 PNG，反推其虚拟路径；否则返回空串。
+// 用于外部/应用回调设置当前壁纸时同步纯色条目高亮。
+QString solidColorPathFromGeneratedFile(const QString &localPath);
 
 } // namespace GxdeWallpaper

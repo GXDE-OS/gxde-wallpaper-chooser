@@ -15,6 +15,7 @@
 #include <dinputdialog.h>
 
 #include <QAction>
+#include <QColorDialog>
 #include <QComboBox>
 #include <QDir>
 #include <QDragEnterEvent>
@@ -24,13 +25,18 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QMenu>
 #include <QMimeData>
+#include <QPainter>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QScrollArea>
 #include <QSet>
 #include <QStandardPaths>
@@ -39,6 +45,72 @@
 #include <QVBoxLayout>
 
 namespace GxdeWallpaper {
+
+// 纯色壁纸预设调色板
+static QList<QColor> solidPalette()
+{
+    return {
+        QColor(0, 0, 0),       QColor(255, 255, 255),
+        QColor(128, 128, 128), QColor(64, 64, 64),
+        QColor(192, 0, 0),     QColor(255, 128, 0),
+        QColor(255, 200, 0),   QColor(0, 150, 60),
+        QColor(0, 120, 215),   QColor(106, 0, 255),
+        QColor(255, 0, 170),   QColor(128, 64, 0),
+    };
+}
+
+// 预设/自定义纯色条目（虚拟路径，不入分类）
+static WallpaperEntry makeSolidEntry(const QColor &color, bool custom = false)
+{
+    WallpaperEntry e;
+    e.path = custom ? customColorEntryPath() : solidColorEntryPath(color);
+    e.uri = e.path;
+    e.isVideo = false;
+    e.sourceKey = QStringLiteral("solid");
+    e.group = QStringLiteral("纯色壁纸");
+    return e;
+}
+
+// 纯色缩略图：整块填色
+static QPixmap solidColorThumbnail(const QColor &color, const QSize &target)
+{
+    const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
+    QPixmap pix(qMax(1, qRound(target.width() * dpr)),
+                qMax(1, qRound(target.height() * dpr)));
+    pix.fill(color);
+    pix.setDevicePixelRatio(dpr);
+    return pix;
+}
+
+// 自定义颜色入口缩略图：彩虹渐变 + 中心加号，提示「选色」
+static QPixmap customColorThumbnail(const QSize &target)
+{
+    const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
+    QPixmap pix(qMax(1, qRound(target.width() * dpr)),
+                qMax(1, qRound(target.height() * dpr)));
+    pix.setDevicePixelRatio(dpr);
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing);
+    QLinearGradient g(0, 0, pix.width(), pix.height());
+    g.setColorAt(0.00, Qt::red);
+    g.setColorAt(0.20, Qt::yellow);
+    g.setColorAt(0.40, Qt::green);
+    g.setColorAt(0.60, Qt::cyan);
+    g.setColorAt(0.80, Qt::blue);
+    g.setColorAt(1.00, Qt::magenta);
+    p.fillRect(QRect(0, 0, pix.width(), pix.height()), g);
+
+    const qreal r = qMin(pix.width(), pix.height()) * 0.22;
+    const QPointF c(pix.width() / 2.0, pix.height() / 2.0);
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor(255, 255, 255, 220));
+    p.drawEllipse(c, r, r);
+    p.setPen(QPen(Qt::black, qMax(2.0, r * 0.18)));
+    const qreal len = r * 0.5;
+    p.drawLine(QLineF(c.x() - len, c.y(), c.x() + len, c.y()));
+    p.drawLine(QLineF(c.x(), c.y() - len, c.x(), c.y() + len));
+    return pix;
+}
 
 // 统一使用 DTK 对话框，跟随系统主题/字体/输入法
 static void showWarning(QWidget *parent, const QString &title,
@@ -110,6 +182,7 @@ WallpaperPage::WallpaperPage(AppearanceClient *appearance,
     , m_lockWallpapers(lockWallpapers)
     , m_categories(new CategoryStore(this))
 {
+    loadCustomSolidColors();
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(24, 16, 24, 8);
     layout->setSpacing(8);
@@ -319,6 +392,8 @@ void WallpaperPage::reload()
 void WallpaperPage::setCurrentWallpaper(const QString &uri)
 {
     m_currentUri = uri;
+    // 若当前壁纸是生成的纯色 PNG，同步纯色条目高亮（否则清掉旧的纯色高亮）
+    m_currentSolidPath = solidColorPathFromGeneratedFile(localPathOf(uri));
     if (!isLockTarget())
         updateHighlight();
 }
@@ -326,16 +401,19 @@ void WallpaperPage::setCurrentWallpaper(const QString &uri)
 void WallpaperPage::setCurrentLockWallpaper(const QString &path)
 {
     m_currentLockPath = path;
+    m_currentSolidPath = solidColorPathFromGeneratedFile(localPathOf(path));
     if (isLockTarget())
         updateHighlight();
 }
 
 QString WallpaperPage::currentHighlightPath() const
 {
-    if (isLockTarget())
-        return m_currentLockPath;
     if (!m_currentDynamicPath.isEmpty())
         return m_currentDynamicPath;
+    if (!m_currentSolidPath.isEmpty())
+        return m_currentSolidPath;
+    if (isLockTarget())
+        return m_currentLockPath;
     return QUrl(m_currentUri).isLocalFile() ? QUrl(m_currentUri).toLocalFile()
                                             : m_currentUri;
 }
@@ -463,6 +541,10 @@ void WallpaperPage::rebuildGroups()
         }
         for (const auto &group : normalGroups)
             appendGroup(group.first, group.second);
+
+        // 纯色壁纸分组：仅「全部壁纸」视图，置于自定义/系统壁纸之后
+        if (m_sourceFilter.isEmpty())
+            appendGroup(tr("纯色壁纸"), buildSolidEntries());
     }
 
     const QString currentPath = currentHighlightPath();
@@ -478,12 +560,32 @@ void WallpaperPage::rebuildGroups()
                 &WallpaperPage::applyWallpaper);
         connect(section, &GroupSection::itemHovered, this,
                 [this](const QString &path) {
+                    if (isSolidColorPath(path))
+                        return; // 纯色缩略图已内联，无需异步请求
                     m_thumbnails->request(path, QSize(156, 96));
                 });
         for (const auto &entry : group.entries) {
             auto *item = new ThumbnailItem(entry.path, section);
             item->setCurrent(entry.path == currentPath);
             item->setVideo(entry.isVideo);
+
+            if (isSolidColorPath(entry.path)) {
+                // 纯色条目：缩略图内联生成，不入分类、不请求缩略图
+                if (isCustomColorPath(entry.path)) {
+                    item->setToolTip(tr("自定义颜色…"));
+                    item->setPixmap(customColorThumbnail(QSize(156, 96)));
+                } else {
+                    const QColor color = solidColorOf(entry.path);
+                    item->setToolTip(
+                        tr("纯色：%1").arg(color.name(QColor::HexRgb).toUpper()));
+                    item->setPixmap(solidColorThumbnail(color, QSize(156, 96)));
+                }
+                connect(item, &ThumbnailItem::contextMenuRequested, this,
+                        &WallpaperPage::showSolidContextMenu);
+                section->addItem(item);
+                continue;
+            }
+
             item->setToolTip(tr("%1\n右键可加入分类").arg(entry.path));
             connect(item, &ThumbnailItem::contextMenuRequested, this,
                     &WallpaperPage::showItemContextMenu);
@@ -518,27 +620,57 @@ void WallpaperPage::onThumbnailReady(const QString &path, const QPixmap &pixmap)
 
 void WallpaperPage::applyWallpaper(const QString &path)
 {
+    // 纯色壁纸：把虚拟路径 solidcolor:… 转成真实纯色 PNG，再走静态应用流程
+    QString realPath = path;
+    if (isSolidColorPath(path)) {
+        QColor color;
+        if (isCustomColorPath(path)) {
+            color = pickCustomColor();
+            if (!color.isValid())
+                return; // 用户在选色框取消
+            if (!m_customSolidColors.contains(color)) {
+                m_customSolidColors << color;
+                if (m_customSolidColors.size() > 16)
+                    m_customSolidColors.removeFirst();
+                saveCustomSolidColors();
+            }
+            rebuildGroups(); // 让新选颜色出现在纯色分组并高亮
+        } else {
+            color = solidColorOf(path);
+        }
+        realPath = generateSolidColorWallpaper(color);
+        if (realPath.isEmpty()) {
+            showWarning(this, tr("无法设置纯色壁纸"),
+                        tr("生成纯色壁纸失败。"));
+            return;
+        }
+        m_currentSolidPath = solidColorEntryPath(color);
+        m_currentDynamicPath.clear(); // 纯色为静态，停用视频动态壁纸
+    } else {
+        m_currentSolidPath.clear();
+    }
+
     if (isLockTarget()) {
-        if (isVideoFile(path)) {
+        if (isVideoFile(realPath)) {
             showWarning(this, tr("无法设置锁屏壁纸"),
                         tr("锁屏壁纸仅支持静态图片，不支持动态壁纸。"));
             return;
         }
         // 乐观高亮；失败时 PickerWidget 会回读 gxdm 的真实状态
-        m_currentLockPath = path;
+        m_currentLockPath = realPath;
         updateHighlight();
-        m_lockWallpapers->applyLockWallpaper(path);
+        m_lockWallpapers->applyLockWallpaper(realPath);
         return;
     }
 
     // 视频条目 → 视频动态壁纸（走桌面面板 DBus，图片位置(P) 显示方式等
     // 静态壁纸选项对它不适用）；面板侧同样会停用正在播放的其它静态配置
-    if (isVideoFile(path)) {
+    if (isVideoFile(realPath)) {
         m_currentUri.clear();
-        m_currentDynamicPath = path; // 乐观高亮
+        m_currentDynamicPath = realPath; // 乐观高亮
         updateHighlight();
-        m_dynamicWallpapers->applyDynamicWallpaper(path);
-        emit dynamicWallpaperApplied(path);
+        m_dynamicWallpapers->applyDynamicWallpaper(realPath);
+        emit dynamicWallpaperApplied(realPath);
         return;
     }
 
@@ -550,12 +682,92 @@ void WallpaperPage::applyWallpaper(const QString &path)
         m_dynamicWallpapers->applyDynamicWallpaper(QString());
     }
 
-    const QString uri = QUrl::fromLocalFile(path).toString();
+    const QString uri = QUrl::fromLocalFile(realPath).toString();
     m_appearance->applyWallpaper(uri);
     // 乐观高亮；失败信号到达时 PickerWidget 会刷新真实状态
     m_currentUri = uri;
     updateHighlight();
     emit wallpaperApplied(uri);
+}
+
+// ---------------------------------------------------------------------------
+// 纯色壁纸
+// ---------------------------------------------------------------------------
+
+static QString customSolidColorsPath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+        + QStringLiteral("/GXDE/gxde-wallpaper-chooser/solid-colors.json");
+}
+
+QList<WallpaperEntry> WallpaperPage::buildSolidEntries() const
+{
+    QList<WallpaperEntry> entries;
+    for (const QColor &c : solidPalette())
+        entries << makeSolidEntry(c);
+    for (const QColor &c : m_customSolidColors)
+        entries << makeSolidEntry(c);
+    entries << makeSolidEntry(QColor(), true); // 自定义颜色入口
+    return entries;
+}
+
+void WallpaperPage::loadCustomSolidColors()
+{
+    m_customSolidColors.clear();
+    QFile file(customSolidColorsPath());
+    if (!file.open(QIODevice::ReadOnly))
+        return;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (!doc.isArray())
+        return;
+    for (const QJsonValue &v : doc.array()) {
+        const QColor c(v.toString());
+        if (c.isValid())
+            m_customSolidColors << c;
+    }
+}
+
+void WallpaperPage::saveCustomSolidColors()
+{
+    const QString path = customSolidColorsPath();
+    if (!QDir().mkpath(QFileInfo(path).absolutePath()))
+        return;
+    QJsonArray arr;
+    for (const QColor &c : m_customSolidColors)
+        arr.append(c.name(QColor::HexRgb));
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return;
+    file.write(QJsonDocument(arr).toJson(QJsonDocument::Compact));
+    file.commit();
+}
+
+QColor WallpaperPage::pickCustomColor()
+{
+    const QColor initial = m_customSolidColors.isEmpty()
+        ? QColor(255, 255, 255)
+        : m_customSolidColors.last();
+    return QColorDialog::getColor(initial, this, tr("选择纯色壁纸颜色"));
+}
+
+void WallpaperPage::showSolidContextMenu(const QString &path,
+                                         const QPoint &globalPos)
+{
+    if (isCustomColorPath(path))
+        return; // 自定义颜色入口不提供右键菜单
+    const QColor color = solidColorOf(path);
+    if (!m_customSolidColors.contains(color))
+        return; // 内置预设色不提供右键菜单
+
+    QMenu menu(this);
+    menu.addAction(tr("删除此颜色"), this, [this, color] {
+        m_customSolidColors.removeAll(color);
+        if (m_currentSolidPath == solidColorEntryPath(color))
+            m_currentSolidPath.clear();
+        saveCustomSolidColors();
+        rebuildGroups();
+    });
+    menu.exec(globalPos);
 }
 
 void WallpaperPage::browseFolder()

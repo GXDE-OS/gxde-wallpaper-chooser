@@ -84,6 +84,9 @@ private slots:
     void onThumbnailReady(const QString &path, const QPixmap &pixmap);
     void applyWallpaper(const QString &path);
 
+    // 纯色壁纸：自定义颜色入口右键删除
+    void showSolidContextMenu(const QString &path, const QPoint &globalPos);
+
 private:
     void buildChrome(); // 标题/说明/来源行/底部选项行
     void updateTargetUi();
@@ -113,6 +116,12 @@ private:
     QString currentHighlightPath() const;
     void updateHighlight();
 
+    // 纯色壁纸
+    void loadCustomSolidColors();
+    void saveCustomSolidColors();
+    QColor pickCustomColor();
+    QList<WallpaperEntry> buildSolidEntries() const;
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
@@ -133,6 +142,8 @@ private:
     QString m_currentDynamicPath; // 桌面视频壁纸
     QString m_currentLockPath;   // 锁屏壁纸
     QString m_sourceFilter;      // 空 = 全部；category:<name> = 用户分类
+    QString m_currentSolidPath;   // 当前生效的纯色虚拟路径（空=非纯色）
+    QList<QColor> m_customSolidColors; // 用户自定义纯色（持久化）
 
     QComboBox *m_sourceCombo = nullptr;
     QComboBox *m_methodCombo = nullptr;

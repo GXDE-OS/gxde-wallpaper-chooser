@@ -1,19 +1,25 @@
 #include "wallpaperentry.h"
 
 #include <QCryptographicHash>
+#include <QColor>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMimeDatabase>
+#include <QScreen>
 #include <QSet>
 #include <QStandardPaths>
 #include <QUrl>
 
 namespace GxdeWallpaper {
+
+static const char *kSolidPrefix = "solidcolor:";
 
 static const char *kImagePatterns[] = {
     "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tiff", "*.tif", "*.gif",
@@ -291,6 +297,83 @@ QList<WallpaperEntry> mergeEntries(const QList<WallpaperEntry> &a,
         result.append(e);
     }
     return result;
+}
+
+// ---------------------------------------------------------------------------
+// 纯色壁纸
+// ---------------------------------------------------------------------------
+
+bool isSolidColorPath(const QString &path)
+{
+    return path.startsWith(QLatin1String(kSolidPrefix));
+}
+
+bool isCustomColorPath(const QString &path)
+{
+    return path == QLatin1String(kSolidPrefix) + QLatin1String("custom");
+}
+
+QColor solidColorOf(const QString &path)
+{
+    const QString hex = path.mid(int(strlen(kSolidPrefix)));
+    return QColor(hex);
+}
+
+QString solidColorEntryPath(const QColor &color)
+{
+    return QLatin1String(kSolidPrefix) + color.name(QColor::HexRgb);
+}
+
+QString customColorEntryPath()
+{
+    return QLatin1String(kSolidPrefix) + QLatin1String("custom");
+}
+
+// 纯色 PNG 落盘目录（与自定义壁纸库分离，避免被当成普通壁纸扫描进列表）
+static QString solidColorBaseDir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+        + QStringLiteral("/GXDE/gxde-wallpaper-chooser/solid-wallpapers");
+}
+
+QString generateSolidColorWallpaper(const QColor &color)
+{
+    if (!color.isValid())
+        return QString();
+
+    const QString dir = solidColorBaseDir();
+    if (!QDir().mkpath(dir))
+        return QString();
+
+    const QString hex = color.name(QColor::HexRgb).mid(1); // RRGGBB
+    const QString path =
+        dir + QStringLiteral("/solid-") + hex + QStringLiteral(".png");
+    if (QFileInfo::exists(path))
+        return path;
+
+    // 按主屏分辨率生成，使任意「图片位置」填充方式都能铺满整屏纯色
+    QSize size(256, 256);
+    if (auto *screen = QGuiApplication::primaryScreen())
+        size = screen->geometry().size();
+    if (size.isEmpty() || size.width() < 16 || size.height() < 16)
+        size = QSize(1920, 1080);
+
+    QImage img(size, QImage::Format_RGB32);
+    img.fill(color.rgb());
+    return img.save(path, "PNG") ? path : QString();
+}
+
+QString solidColorPathFromGeneratedFile(const QString &localPath)
+{
+    const QString base = solidColorBaseDir() + QStringLiteral("/solid-");
+    if (localPath.startsWith(base) && localPath.endsWith(QLatin1String(".png"))) {
+        const QString hex =
+            localPath.mid(base.size(), localPath.size() - base.size() - 4);
+        const QColor color(QLatin1Char('#') + hex);
+        if (color.isValid())
+            return solidColorEntryPath(color);
+    }
+    return QString();
 }
 
 } // namespace GxdeWallpaper
