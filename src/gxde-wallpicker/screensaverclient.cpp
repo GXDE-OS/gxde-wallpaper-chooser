@@ -140,6 +140,41 @@ void ScreensaverClient::fetchCover(const QString &name)
             });
 }
 
+void ScreensaverClient::fetchConfigurable(const QString &name)
+{
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QLatin1String(kSsService), QLatin1String(kSsPath), QLatin1String(kSsIface),
+        QStringLiteral("IsConfigurable"));
+    msg << name;
+
+    auto *watcher = new QDBusPendingCallWatcher(
+        QDBusConnection::sessionBus().asyncCall(msg, kSsTimeoutMs), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, name](QDBusPendingCallWatcher *w) {
+                w->deleteLater();
+                bool configurable = false;
+                if (!w->error().isValid()) {
+                    const QDBusReply<bool> reply(w->reply());
+                    if (reply.isValid())
+                        configurable = reply.value();
+                }
+                emit configurableReady(name, configurable);
+            });
+}
+
+bool ScreensaverClient::startCustomConfig(const QString &name)
+{
+    QDBusInterface iface(QLatin1String(kSsService), QLatin1String(kSsPath),
+                         QLatin1String(kSsIface), QDBusConnection::sessionBus());
+    iface.setTimeout(kSsTimeoutMs);
+    const QDBusReply<bool> reply = iface.call(QStringLiteral("StartCustomConfig"), name);
+    if (!reply.isValid()) {
+        qWarning() << "StartCustomConfig failed:" << reply.error().message();
+        return false;
+    }
+    return reply.value();
+}
+
 void ScreensaverClient::startPreview()
 {
     // 不用 Start()：那是真实激活（任意输入即退出，还会启动唤醒锁屏计时）；

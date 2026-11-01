@@ -28,6 +28,12 @@ public:
     void fetchState();
     // 某屏保封面图路径（GetScreenSaverCover）
     void fetchCover(const QString &name);
+    // 查询某屏保是否支持自定义设置（IsConfigurable，异步）；
+    // 结果经 configurableReady 抛出，出错一律视为不支持
+    void fetchConfigurable(const QString &name);
+    // 启动屏保自带的自定义设置界面（StartCustomConfig），
+    // 返回 daemon 是否成功拉起配置程序
+    bool startCustomConfig(const QString &name);
     // 预览当前屏保（全屏置顶；GXDE 上鼠标移动不退出，点击/按键退出，
     // 不触发唤醒锁屏计时）
     void startPreview();
@@ -45,6 +51,7 @@ public:
 signals:
     void screensaversReady(const QStringList &names);
     void coverReady(const QString &name, const QString &coverPath);
+    void configurableReady(const QString &name, bool configurable);
     void stateReady(const QString &current, int waitSeconds, bool lockOnWakeup);
     void currentChanged(const QString &name);
     void waitChanged(int seconds);

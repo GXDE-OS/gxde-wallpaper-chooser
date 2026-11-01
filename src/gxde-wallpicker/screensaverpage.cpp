@@ -68,19 +68,29 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
     m_scroll->setWidget(m_scrollContent);
     layout->addWidget(m_scroll, 1);
 
-    // 底部：预览 + 等待时长 + 唤醒密码（Win7 顺序：预览在等待之前）
+    // 底部：预览 + 自定义设置 + 等待时长 + 唤醒密码（Win7 顺序：预览在等待之前）
     auto *optionsRow = new QHBoxLayout;
     optionsRow->setSpacing(8);
     auto *previewBtn = new QPushButton(tr("Preview (P)"), this);
     previewBtn->setToolTip(tr("Preview the current screensaver in full screen; click or press any key to exit"));
     connect(previewBtn, &QPushButton::clicked, this,
             [this] { m_screensaver->startPreview(); });
+    // 自定义设置：仅当前屏保支持时可用（IsConfigurable），
+    // 点击经 daemon（StartCustomConfig）拉起该屏保自己的配置界面
+    m_configBtn = new QPushButton(tr("Customize..."), this);
+    m_configBtn->setToolTip(tr("Configure the selected screensaver (disabled if it has no custom settings)"));
+    m_configBtn->setEnabled(false);
+    connect(m_configBtn, &QPushButton::clicked, this, [this] {
+        if (!m_selectedName.isEmpty())
+            m_screensaver->startCustomConfig(m_selectedName);
+    });
     auto *waitLabel = new QLabel(tr("Wait (W):"), this);
     m_waitCombo = new QComboBox(this);
     for (const auto &w : kWaits)
         m_waitCombo->addItem(tr(w.label), w.seconds);
     m_lockCheck = new QCheckBox(tr("Require password on wake"), this);
     optionsRow->addWidget(previewBtn);
+    optionsRow->addWidget(m_configBtn);
     optionsRow->addWidget(waitLabel);
     optionsRow->addWidget(m_waitCombo);
     optionsRow->addSpacing(24);
@@ -100,6 +110,8 @@ ScreensaverPage::ScreensaverPage(ScreensaverClient *screensaver,
             &ScreensaverPage::populateGrid);
     connect(m_screensaver, &ScreensaverClient::coverReady, this,
             &ScreensaverPage::onCoverReady);
+    connect(m_screensaver, &ScreensaverClient::configurableReady, this,
+            &ScreensaverPage::onConfigurableReady);
     connect(m_thumbnails, &ThumbnailProvider::thumbnailReady, this,
             &ScreensaverPage::onThumbnailReady);
 }
@@ -122,8 +134,10 @@ void ScreensaverPage::reload()
 
 void ScreensaverPage::setCurrentItem(const QString &name)
 {
+    m_selectedName = name;
     for (auto it = m_itemsByName.constBegin(); it != m_itemsByName.constEnd(); ++it)
         m_itemsByName.value(it.key())->setCurrent(it.key() == name);
+    updateConfigButton();
 }
 
 void ScreensaverPage::restoreState(const QString &current, int waitSeconds,
@@ -161,6 +175,7 @@ void ScreensaverPage::populateGrid(const QStringList &names)
         m_itemsByName.insert(name, item);
         m_grid->addItem(item);
         m_screensaver->fetchCover(name);
+        m_screensaver->fetchConfigurable(name);
     }
     // 初始高亮对齐 daemon 当前值
     setCurrentItem(m_screensaver->currentScreensaver());
@@ -185,6 +200,20 @@ void ScreensaverPage::onThumbnailReady(const QString &path, const QPixmap &pixma
         if (ThumbnailItem *item = m_itemsByName.value(it.key(), nullptr))
             item->setPixmap(pixmap);
     }
+}
+
+void ScreensaverPage::onConfigurableReady(const QString &name, bool configurable)
+{
+    m_configurable.insert(name, configurable);
+    if (name == m_selectedName)
+        updateConfigButton();
+}
+
+void ScreensaverPage::updateConfigButton()
+{
+    // 查询未返回/不支持/未选中一律禁用
+    m_configBtn->setEnabled(!m_selectedName.isEmpty()
+                            && m_configurable.value(m_selectedName, false));
 }
 
 } // namespace GxdeWallpaper
