@@ -46,6 +46,20 @@ void ThumbnailItem::setVideo(bool video)
     update();
 }
 
+void ThumbnailItem::setDeletable(bool deletable)
+{
+    if (m_deletable == deletable)
+        return;
+    m_deletable = deletable;
+    update();
+}
+
+QRectF ThumbnailItem::deleteBadgeRect() const
+{
+    const QRectF r = QRectF(rect()).adjusted(1, 1, -1, -1);
+    return QRectF(r.right() - 22, r.top() + 4, 18, 18);
+}
+
 void ThumbnailItem::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
@@ -101,9 +115,10 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     p.setBrush(Qt::NoBrush);
     p.drawRoundedRect(r, kRadius, kRadius);
 
-    // 当前壁纸角标 ✓
+    // 当前壁纸角标 ✓（自定义壁纸同时有删除按钮时左移一格，避免重叠）
     if (m_current) {
-        const QRectF badge(r.right() - 22, r.top() + 4, 18, 18);
+        const qreal left = m_deletable ? r.right() - 46 : r.right() - 22;
+        const QRectF badge(left, r.top() + 4, 18, 18);
         p.setPen(Qt::NoPen);
         p.setBrush(accent);
         p.drawEllipse(badge);
@@ -113,6 +128,20 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
         f.setPixelSize(11);
         p.setFont(f);
         p.drawText(badge, Qt::AlignCenter, QStringLiteral("✓"));
+    }
+
+    // 自定义壁纸：右上角删除按钮 ✕（点击删除该壁纸文件）
+    if (m_deletable) {
+        const QRectF badge = deleteBadgeRect();
+        p.setPen(Qt::NoPen);
+        p.setBrush(m_hovered ? QColor(218, 62, 62, 245)
+                             : QColor(176, 42, 42, 215));
+        p.drawEllipse(badge);
+
+        QRectF cross = badge.adjusted(5, 5, -5, -5);
+        p.setPen(QPen(Qt::white, 1.8));
+        p.drawLine(cross.topLeft(), cross.bottomRight());
+        p.drawLine(cross.topRight(), cross.bottomLeft());
     }
 
     // 视频角标：左下角播放三角（动态壁纸提示）
@@ -134,8 +163,16 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
 
 void ThumbnailItem::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton)
+    if (event->button() == Qt::LeftButton) {
+        // 点击右上角 ✕：删除该壁纸，而不是应用壁纸
+        if (m_deletable
+                && deleteBadgeRect().adjusted(-4, -4, 4, 4)
+                       .contains(event->position())) {
+            emit deleteRequested(m_path);
+            return;
+        }
         emit clicked(m_path);
+    }
     QWidget::mouseReleaseEvent(event);
 }
 

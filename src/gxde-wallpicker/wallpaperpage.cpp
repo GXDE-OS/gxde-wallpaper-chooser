@@ -22,6 +22,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
@@ -589,8 +590,11 @@ void WallpaperPage::rebuildGroups()
             }
 
             item->setToolTip(tr("%1\nRight-click to add to a category").arg(entry.path));
+            item->setDeletable(canDeleteWallpaper(entry.path));
             connect(item, &ThumbnailItem::contextMenuRequested, this,
                     &WallpaperPage::showItemContextMenu);
+            connect(item, &ThumbnailItem::deleteRequested, this,
+                    &WallpaperPage::deleteWallpaper);
             section->addItem(item);
             if (!requested.contains(entry.path)) {
                 requested << entry.path;
@@ -1094,7 +1098,57 @@ void WallpaperPage::showItemContextMenu(const QString &path,
     menu.addAction(isLockTarget() ? tr("Set as Lock Screen Wallpaper") : tr("Set as Desktop Wallpaper"),
                    this, [this, path] { applyWallpaper(path); });
 
+    if (canDeleteWallpaper(path)) {
+        menu.addAction(QIcon::fromTheme(QStringLiteral("edit-delete")),
+                       tr("Delete"), this, [this, path] {
+                           deleteWallpaper(path);
+                       });
+    }
+
     menu.exec(globalPos);
+}
+
+bool WallpaperPage::canDeleteWallpaper(const QString &path) const
+{
+    for (const WallpaperEntry &entry : m_entries) {
+        if (entry.path == path)
+            return entry.deletable
+                || entry.sourceKey == QLatin1String("custom");
+    }
+    return false;
+}
+
+void WallpaperPage::deleteWallpaper(const QString &path)
+{
+    if (!canDeleteWallpaper(path))
+        return;
+
+    if (!askConfirm(this, tr("Delete Wallpaper"),
+                    tr("Delete wallpaper %1? The image file will be removed from disk.")
+                        .arg(QFileInfo(path).fileName()),
+                    tr("Delete")))
+        return;
+
+    const QString localPath = localPathOf(path);
+    if (QFileInfo::exists(localPath) && !QFile::remove(localPath)) {
+        showWarning(this, tr("Cannot delete wallpaper"),
+                    tr("Failed to delete %1.").arg(localPath));
+        return;
+    }
+
+    // 分类只保存路径，同步清掉已删除文件的归属，避免分类里残留空条目
+    for (const QString &name : m_categories->categoriesFor(path))
+        m_categories->unassign(name, path);
+
+    for (int i = 0; i < m_entries.size(); ++i) {
+        if (m_entries.at(i).path == path) {
+            m_entries.removeAt(i);
+            break;
+        }
+    }
+
+    populateSources();
+    rebuildGroups();
 }
 
 } // namespace GxdeWallpaper

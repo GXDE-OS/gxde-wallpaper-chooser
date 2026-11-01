@@ -5,6 +5,7 @@
 #pragma once
 
 #include <QPixmap>
+#include <QRectF>
 #include <QWidget>
 
 namespace GxdeWallpaper {
@@ -21,11 +22,14 @@ public:
     bool isCurrent() const { return m_current; }
     void setVideo(bool video);     // 视频动态壁纸 → 播放角标
     bool isVideo() const { return m_video; }
+    void setDeletable(bool deletable); // 自定义壁纸 → 右上角删除按钮
+    bool isDeletable() const { return m_deletable; }
 
 signals:
     void clicked(const QString &path);
     void hoverEntered(const QString &path); // 懒加载触发
     void contextMenuRequested(const QString &path, const QPoint &globalPos);
+    void deleteRequested(const QString &path);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -35,11 +39,14 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
+    QRectF deleteBadgeRect() const; // 右上角删除按钮（绘制/命中测试共用）
+
     QString m_path;
     QPixmap m_pixmap;
     bool m_current = false;
     bool m_hovered = false;
     bool m_video = false;
+    bool m_deletable = false;
 };
 
 } // namespace GxdeWallpaper

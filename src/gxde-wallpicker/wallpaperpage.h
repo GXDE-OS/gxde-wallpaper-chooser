@@ -87,6 +87,9 @@ private slots:
     // 纯色壁纸：自定义颜色入口右键删除
     void showSolidContextMenu(const QString &path, const QPoint &globalPos);
 
+    // 自定义壁纸删除（卡片 ✕ 与右键菜单共用）
+    void deleteWallpaper(const QString &path);
+
 private:
     void buildChrome(); // 标题/说明/来源行/底部选项行
     void updateTargetUi();
@@ -97,6 +100,8 @@ private:
     // 分类管理 / 右键归类
     void showCategoryMenu();
     void showItemContextMenu(const QString &path, const QPoint &globalPos);
+    // 自定义壁纸库内的壁纸条目可直接删除（✕ 按钮/右键菜单可用）
+    bool canDeleteWallpaper(const QString &path) const;
     QString promptCategoryName(const QString &title,
                                const QString &initial = QString());
     void createCategoryInteractive();
