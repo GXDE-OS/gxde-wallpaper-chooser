@@ -1,3 +1,9 @@
+gxde-wallpaper-chooser (0.2.7) UNRELEASED; urgency=medium
+
+  * 调整：自定义壁纸不再显示卡片右上角删除按钮，删除入口统一走右键菜单
+
+ -- momen <vmomenv@gmail.com>  Fri, 13 Nov 2026 14:05:26 +0800
+
 gxde-wallpaper-chooser (0.2.6) UNRELEASED; urgency=medium
 
   * feat: 自定义壁纸缩略图右上角新增删除按钮，右键菜单新增「删除」

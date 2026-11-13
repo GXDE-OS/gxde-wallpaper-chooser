@@ -87,7 +87,7 @@ private slots:
     // 纯色壁纸：自定义颜色入口右键删除
     void showSolidContextMenu(const QString &path, const QPoint &globalPos);
 
-    // 自定义壁纸删除（卡片 ✕ 与右键菜单共用）
+    // 自定义壁纸删除（右键菜单）
     void deleteWallpaper(const QString &path);
 
 private:
@@ -100,7 +100,7 @@ private:
     // 分类管理 / 右键归类
     void showCategoryMenu();
     void showItemContextMenu(const QString &path, const QPoint &globalPos);
-    // 自定义壁纸库内的壁纸条目可直接删除（✕ 按钮/右键菜单可用）
+    // 自定义壁纸库内的壁纸条目可直接删除（右键菜单可用）
     bool canDeleteWallpaper(const QString &path) const;
     QString promptCategoryName(const QString &title,
                                const QString &initial = QString());

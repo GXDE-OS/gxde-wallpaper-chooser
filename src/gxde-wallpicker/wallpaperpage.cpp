@@ -590,11 +590,8 @@ void WallpaperPage::rebuildGroups()
             }
 
             item->setToolTip(tr("%1\nRight-click to add to a category").arg(entry.path));
-            item->setDeletable(canDeleteWallpaper(entry.path));
             connect(item, &ThumbnailItem::contextMenuRequested, this,
                     &WallpaperPage::showItemContextMenu);
-            connect(item, &ThumbnailItem::deleteRequested, this,
-                    &WallpaperPage::deleteWallpaper);
             section->addItem(item);
             if (!requested.contains(entry.path)) {
                 requested << entry.path;
