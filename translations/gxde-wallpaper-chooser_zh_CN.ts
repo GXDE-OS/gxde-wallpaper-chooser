@@ -496,6 +496,42 @@ Right-click to add to a category</source>
         <source>Failed to delete %1.</source>
         <translation>“%1”删除失败。</translation>
     </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="262"/>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1172"/>
+        <source>Multi-select</source>
+        <translation>多选</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1172"/>
+        <source>Cancel Multi-select</source>
+        <translation>取消多选</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="264"/>
+        <source>Select multiple custom wallpapers and delete them</source>
+        <translation>勾选多张自定义壁纸并批量删除</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="296"/>
+        <source>Delete Selected</source>
+        <translation>删除所选</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1202"/>
+        <source>Selected: %1</source>
+        <translation>已选 %1 项</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1213"/>
+        <source>Delete Wallpapers</source>
+        <translation>删除壁纸</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1214"/>
+        <source>Delete %1 selected wallpaper(s)? The image files will be removed from disk.</source>
+        <translation>删除选中的 %1 张壁纸？这些图片文件将从磁盘中移除。</translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>

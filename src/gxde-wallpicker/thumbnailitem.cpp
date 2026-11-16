@@ -20,7 +20,7 @@ ThumbnailItem::ThumbnailItem(const QString &path, QWidget *parent)
     , m_path(path)
 {
     setFixedSize(kThumbW, kThumbH);
-    setCursor(Qt::PointingHandCursor);
+    updateCursor();
     setToolTip(path);
 }
 
@@ -44,6 +44,45 @@ void ThumbnailItem::setVideo(bool video)
         return;
     m_video = video;
     update();
+}
+
+void ThumbnailItem::setSelectionMode(bool on)
+{
+    if (m_selectionMode == on)
+        return;
+    m_selectionMode = on;
+    if (!on)
+        m_checked = false;
+    updateCursor();
+    update();
+}
+
+void ThumbnailItem::setSelectable(bool selectable)
+{
+    if (m_selectable == selectable)
+        return;
+    m_selectable = selectable;
+    if (!selectable)
+        m_checked = false;
+    updateCursor();
+    update();
+}
+
+void ThumbnailItem::setChecked(bool checked)
+{
+    if (m_checked == checked)
+        return;
+    m_checked = checked;
+    update();
+}
+
+void ThumbnailItem::updateCursor()
+{
+    if (m_selectionMode) {
+        setCursor(m_selectable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+    } else {
+        setCursor(Qt::PointingHandCursor);
+    }
 }
 
 void ThumbnailItem::paintEvent(QPaintEvent *)
@@ -84,11 +123,11 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     }
     p.setClipping(false);
 
-    // 描边：当前壁纸蓝色加粗 / 悬停高亮 / 常态细边
+    // 描边：多选勾选/当前壁纸蓝色加粗 / 悬停高亮 / 常态细边
     // 选中/悬停用 GXDE 主题色（调色板 Highlight），与标题栏页签一致
     const QColor accent = palette().color(QPalette::Highlight);
     QPen pen;
-    if (m_current) {
+    if (m_checked || (m_current && !m_selectionMode)) {
         pen = QPen(accent, 2.5);
     } else if (m_hovered) {
         QColor hover = accent;
@@ -101,8 +140,8 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
     p.setBrush(Qt::NoBrush);
     p.drawRoundedRect(r, kRadius, kRadius);
 
-    // 当前壁纸角标 ✓
-    if (m_current) {
+    // 当前壁纸角标 ✓（多选模式下让位给复选框）
+    if (m_current && !m_selectionMode) {
         const QRectF badge(r.right() - 22, r.top() + 4, 18, 18);
         p.setPen(Qt::NoPen);
         p.setBrush(accent);
@@ -113,6 +152,27 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
         f.setPixelSize(11);
         p.setFont(f);
         p.drawText(badge, Qt::AlignCenter, QStringLiteral("✓"));
+    }
+
+    // 多选复选框：只有可删除的自定义壁纸显示；系统壁纸不参与多选
+    if (m_selectionMode && m_selectable) {
+        const QRectF box(r.right() - 23, r.top() + 5, 18, 18);
+        p.setPen(QPen(m_checked ? accent : QColor(255, 255, 255, 235), 1.5));
+        p.setBrush(m_checked ? accent : QColor(0, 0, 0, 90));
+        p.drawRoundedRect(box, 4, 4);
+        if (m_checked) {
+            QPainterPath check;
+            check.moveTo(box.left() + box.width() * 0.24,
+                         box.top() + box.height() * 0.52);
+            check.lineTo(box.left() + box.width() * 0.43,
+                         box.top() + box.height() * 0.71);
+            check.lineTo(box.left() + box.width() * 0.77,
+                         box.top() + box.height() * 0.31);
+            p.setPen(QPen(Qt::white, 2, Qt::SolidLine, Qt::RoundCap,
+                          Qt::RoundJoin));
+            p.setBrush(Qt::NoBrush);
+            p.drawPath(check);
+        }
     }
 
     // 视频角标：左下角播放三角（动态壁纸提示）
@@ -134,8 +194,17 @@ void ThumbnailItem::paintEvent(QPaintEvent *)
 
 void ThumbnailItem::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton)
-        emit clicked(m_path);
+    if (event->button() == Qt::LeftButton) {
+        if (m_selectionMode) {
+            if (m_selectable) {
+                m_checked = !m_checked;
+                update();
+                emit selectionToggled(m_path, m_checked);
+            }
+        } else {
+            emit clicked(m_path);
+        }
+    }
     QWidget::mouseReleaseEvent(event);
 }
 

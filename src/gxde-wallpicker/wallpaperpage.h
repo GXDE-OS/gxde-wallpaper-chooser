@@ -10,6 +10,8 @@
  * 交互：
  *  - 单击缩略图立即应用（桌面模式 / 锁屏模式由 setTarget 决定）
  *  - 右键缩略图可加入/移出用户自定义分类
+ *  - 「多选」进入批量删除模式：自定义壁纸右上角出现复选框，可多选后删除；
+ *    系统壁纸不可勾选，退出多选后恢复单击应用
  *  - 「分类(C)...」新建、重命名、删除分类，分类写入用户配置持久化
  *  - 轮播间隔变更立即写 daemon（仅桌面模式）
  *  - 「浏览」可选文件夹（加入来源）或单个图片/动态壁纸（入库并立即应用）；
@@ -20,6 +22,7 @@
 
 #include "wallpaperentry.h"
 
+#include <QSet>
 #include <QUrl>
 #include <QWidget>
 
@@ -90,6 +93,13 @@ private slots:
     // 自定义壁纸删除（右键菜单）
     void deleteWallpaper(const QString &path);
 
+    // 多选模式
+    void setSelectionMode(bool on);
+    void toggleSelectionMode() { setSelectionMode(!m_selectionMode); }
+    void onItemSelectionToggled(const QString &path, bool checked);
+    void updateSelectionUi();
+    void deleteSelectedWallpapers();
+
 private:
     void buildChrome(); // 标题/说明/来源行/底部选项行
     void updateTargetUi();
@@ -102,6 +112,8 @@ private:
     void showItemContextMenu(const QString &path, const QPoint &globalPos);
     // 自定义壁纸库内的壁纸条目可直接删除（右键菜单可用）
     bool canDeleteWallpaper(const QString &path) const;
+    // 删除单张壁纸文件并同步分类/条目列表；返回 false 表示文件删除失败
+    bool removeWallpaperFile(const QString &path);
     QString promptCategoryName(const QString &title,
                                const QString &initial = QString());
     void createCategoryInteractive();
@@ -132,6 +144,7 @@ protected:
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
     AppearanceClient *m_appearance;
@@ -157,8 +170,14 @@ private:
     QLabel *m_subtitleLabel = nullptr;
     QLabel *m_sourceLabel = nullptr;
     QPushButton *m_categoryBtn = nullptr;
+    QPushButton *m_selectBtn = nullptr;
     QAction *m_browseFileAction = nullptr;
     QWidget *m_optionsBar = nullptr;
+    QWidget *m_selectionBar = nullptr;
+    QLabel *m_selectionLabel = nullptr;
+    QPushButton *m_deleteSelectedBtn = nullptr;
+    bool m_selectionMode = false;
+    QSet<QString> m_selectedPaths;
     QScrollArea *m_scroll = nullptr;
     QWidget *m_scrollContent = nullptr;
     QVBoxLayout *m_scrollLayout = nullptr;

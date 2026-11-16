@@ -29,6 +29,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QJsonArray>
@@ -258,11 +259,15 @@ void WallpaperPage::buildChrome()
     auto *browseBtn = new QPushButton(tr("Browse (B)..."), this);
     m_categoryBtn = new QPushButton(tr("Category (C)..."), this);
     m_categoryBtn->setToolTip(tr("Create, rename or delete custom categories; right-click a wallpaper to add it to a category"));
+    m_selectBtn = new QPushButton(tr("Multi-select"), this);
+    m_selectBtn->setCheckable(true);
+    m_selectBtn->setToolTip(tr("Select multiple custom wallpapers and delete them"));
     sourceRow->addWidget(m_sourceLabel);
     sourceRow->addWidget(m_sourceCombo, 1);
     sourceRow->addSpacing(8);
     sourceRow->addWidget(browseBtn);
     sourceRow->addWidget(m_categoryBtn);
+    sourceRow->addWidget(m_selectBtn);
     sourceRow->addStretch();
     m_rootLayout->addLayout(sourceRow);
 
@@ -280,6 +285,21 @@ void WallpaperPage::buildChrome()
     m_scrollLayout->addStretch();
     m_scroll->setWidget(m_scrollContent);
     m_rootLayout->addWidget(m_scroll, 1);
+
+    // 多选操作栏（仅在多选模式显示）
+    m_selectionBar = new QWidget(this);
+    auto *selectionRow = new QHBoxLayout(m_selectionBar);
+    selectionRow->setContentsMargins(0, 0, 0, 0);
+    selectionRow->setSpacing(8);
+    m_selectionLabel = new QLabel(m_selectionBar);
+    m_deleteSelectedBtn = new QPushButton(
+        QIcon::fromTheme(QStringLiteral("edit-delete")), tr("Delete Selected"),
+        m_selectionBar);
+    selectionRow->addWidget(m_selectionLabel);
+    selectionRow->addStretch();
+    selectionRow->addWidget(m_deleteSelectedBtn);
+    m_selectionBar->setVisible(false);
+    m_rootLayout->addWidget(m_selectionBar);
 
     // 底部：图片位置(P) 显示方式 + 更改图片时间间隔(N) 轮播（仅桌面壁纸）
     m_optionsBar = new QWidget(this);
@@ -324,10 +344,20 @@ void WallpaperPage::buildChrome()
     });
     connect(m_sourceCombo, &QComboBox::activated, this, [this](int) {
         m_sourceFilter = m_sourceCombo->currentData().toString();
+        // 切换视图后不可见的选中项不应继续参与删除
+        if (m_selectionMode && !m_selectedPaths.isEmpty()) {
+            m_selectedPaths.clear();
+            updateSelectionUi();
+        }
         rebuildGroups();
     });
     connect(m_categoryBtn, &QPushButton::clicked, this,
             &WallpaperPage::showCategoryMenu);
+    connect(m_selectBtn, &QPushButton::clicked, this,
+            &WallpaperPage::toggleSelectionMode);
+    connect(m_deleteSelectedBtn, &QPushButton::clicked, this,
+            &WallpaperPage::deleteSelectedWallpapers);
+    updateSelectionUi();
 
     // 浏览：文件夹（加入来源）或单个图片/动态壁纸（立即应用）
     auto *browseMenu = new QMenu(browseBtn);
@@ -374,6 +404,9 @@ void WallpaperPage::setTarget(WallpaperTarget target)
     const bool changed = m_target != target;
     m_target = target;
     updateTargetUi();
+
+    if (changed && m_selectionMode)
+        setSelectionMode(false);
 
     if (isLockTarget())
         m_lockWallpapers->fetchCurrent();
@@ -571,6 +604,11 @@ void WallpaperPage::rebuildGroups()
             auto *item = new ThumbnailItem(entry.path, section);
             item->setCurrent(entry.path == currentPath);
             item->setVideo(entry.isVideo);
+            item->setSelectable(canDeleteWallpaper(entry.path));
+            item->setChecked(m_selectedPaths.contains(entry.path));
+            item->setSelectionMode(m_selectionMode);
+            connect(item, &ThumbnailItem::selectionToggled, this,
+                    &WallpaperPage::onItemSelectionToggled);
 
             if (isSolidColorPath(entry.path)) {
                 // 纯色条目：缩略图内联生成，不入分类、不请求缩略图
@@ -623,6 +661,9 @@ void WallpaperPage::onThumbnailReady(const QString &path, const QPixmap &pixmap)
 
 void WallpaperPage::applyWallpaper(const QString &path)
 {
+    if (m_selectionMode)
+        return; // 多选模式下点击只勾选，不应用壁纸
+
     // 纯色壁纸：把虚拟路径 solidcolor:… 转成真实纯色 PNG，再走静态应用流程
     QString realPath = path;
     if (isSolidColorPath(path)) {
@@ -756,6 +797,8 @@ QColor WallpaperPage::pickCustomColor()
 void WallpaperPage::showSolidContextMenu(const QString &path,
                                          const QPoint &globalPos)
 {
+    if (m_selectionMode)
+        return; // 多选模式下右键菜单不参与
     if (isCustomColorPath(path))
         return; // 自定义颜色入口不提供右键菜单
     const QColor color = solidColorOf(path);
@@ -1055,6 +1098,8 @@ void WallpaperPage::showCategoryMenu()
 void WallpaperPage::showItemContextMenu(const QString &path,
                                         const QPoint &globalPos)
 {
+    if (m_selectionMode)
+        return; // 多选模式下右键菜单不参与
     QMenu menu(this);
     QMenu *assignMenu = menu.addMenu(tr("Add to Category"));
 
@@ -1115,23 +1160,101 @@ bool WallpaperPage::canDeleteWallpaper(const QString &path) const
     return false;
 }
 
-void WallpaperPage::deleteWallpaper(const QString &path)
+// ---------------------------------------------------------------------------
+// 多选删除
+// ---------------------------------------------------------------------------
+
+void WallpaperPage::setSelectionMode(bool on)
 {
-    if (!canDeleteWallpaper(path))
+    if (m_selectionMode == on)
+        return;
+    m_selectionMode = on;
+    m_selectedPaths.clear();
+
+    if (m_selectBtn) {
+        m_selectBtn->setChecked(on);
+        m_selectBtn->setText(on ? tr("Cancel Multi-select") : tr("Multi-select"));
+    }
+    if (m_selectionBar)
+        m_selectionBar->setVisible(on);
+
+    for (GroupSection *group : m_groups) {
+        const auto items = group->findChildren<ThumbnailItem *>();
+        for (ThumbnailItem *item : items) {
+            item->setChecked(false);
+            item->setSelectionMode(on);
+        }
+    }
+    updateSelectionUi();
+}
+
+void WallpaperPage::onItemSelectionToggled(const QString &path, bool checked)
+{
+    if (!m_selectionMode || !canDeleteWallpaper(path))
+        return;
+    // 同一张壁纸可能同时出现在分类分组和原分组，同步所有卡片的勾选态
+    for (GroupSection *group : m_groups) {
+        const auto items = group->findChildren<ThumbnailItem *>();
+        for (ThumbnailItem *item : items) {
+            if (item->path() == path)
+                item->setChecked(checked);
+        }
+    }
+    if (checked)
+        m_selectedPaths.insert(path);
+    else
+        m_selectedPaths.remove(path);
+    updateSelectionUi();
+}
+
+void WallpaperPage::updateSelectionUi()
+{
+    const int count = m_selectedPaths.size();
+    if (m_selectionLabel)
+        m_selectionLabel->setText(tr("Selected: %1").arg(count));
+    if (m_deleteSelectedBtn)
+        m_deleteSelectedBtn->setEnabled(count > 0);
+}
+
+void WallpaperPage::deleteSelectedWallpapers()
+{
+    if (!m_selectionMode || m_selectedPaths.isEmpty())
         return;
 
-    if (!askConfirm(this, tr("Delete Wallpaper"),
-                    tr("Delete wallpaper %1? The image file will be removed from disk.")
-                        .arg(QFileInfo(path).fileName()),
+    const QStringList paths(m_selectedPaths.begin(), m_selectedPaths.end());
+    if (!askConfirm(this, tr("Delete Wallpapers"),
+                    tr("Delete %1 selected wallpaper(s)? The image files will be removed from disk.")
+                        .arg(paths.size()),
                     tr("Delete")))
         return;
 
-    const QString localPath = localPathOf(path);
-    if (QFileInfo::exists(localPath) && !QFile::remove(localPath)) {
-        showWarning(this, tr("Cannot delete wallpaper"),
-                    tr("Failed to delete %1.").arg(localPath));
-        return;
+    QStringList failed;
+    for (const QString &path : paths) {
+        if (!canDeleteWallpaper(path))
+            continue;
+        if (!removeWallpaperFile(path))
+            failed << QFileInfo(path).fileName();
     }
+
+    setSelectionMode(false);
+    populateSources();
+    rebuildGroups();
+
+    if (!failed.isEmpty()) {
+        showWarning(this, tr("Cannot delete wallpaper"),
+                    tr("Failed to delete %1.")
+                        .arg(failed.join(QStringLiteral(", "))));
+    }
+}
+
+bool WallpaperPage::removeWallpaperFile(const QString &path)
+{
+    if (!canDeleteWallpaper(path))
+        return false;
+
+    const QString localPath = localPathOf(path);
+    if (QFileInfo::exists(localPath) && !QFile::remove(localPath))
+        return false;
 
     // 分类只保存路径，同步清掉已删除文件的归属，避免分类里残留空条目
     for (const QString &name : m_categories->categoriesFor(path))
@@ -1143,9 +1266,38 @@ void WallpaperPage::deleteWallpaper(const QString &path)
             break;
         }
     }
+    return true;
+}
+
+void WallpaperPage::deleteWallpaper(const QString &path)
+{
+    if (!canDeleteWallpaper(path))
+        return;
+
+    if (!askConfirm(this, tr("Delete Wallpaper"),
+                    tr("Delete wallpaper %1? The image file will be removed from disk.")
+                        .arg(QFileInfo(path).fileName()),
+                    tr("Delete")))
+        return;
+
+    if (!removeWallpaperFile(path)) {
+        showWarning(this, tr("Cannot delete wallpaper"),
+                    tr("Failed to delete %1.").arg(localPathOf(path)));
+        return;
+    }
 
     populateSources();
     rebuildGroups();
+}
+
+void WallpaperPage::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Escape && m_selectionMode) {
+        setSelectionMode(false);
+        event->accept();
+        return;
+    }
+    QWidget::keyPressEvent(event);
 }
 
 } // namespace GxdeWallpaper
