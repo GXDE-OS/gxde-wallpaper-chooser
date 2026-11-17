@@ -9,7 +9,8 @@ Build-Depends:
  qt6-multimedia-dev,
  libdtk2widget6-dev,
  libgsettings-qt6-dev,
- pkg-config
+ pkg-config,
+ qt6-l10n-tools,
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
 
