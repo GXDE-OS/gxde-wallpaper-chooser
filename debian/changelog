@@ -1,3 +1,13 @@
+gxde-wallpaper-chooser (0.2.9) UNRELEASED; urgency=medium
+
+  * feat: 多选模式支持将选中的自定义壁纸批量加入一个或多个分类
+  * feat: 批量归类对话框支持新建分类并全部加入，三态复选框显示部分归类情况
+  * 调整：切换多选时立即重排布局，避免操作栏与滚动区暂时重叠
+  * fix: 关于对话框版本号与软件包版本保持一致（CMake 工程版本 0.2.9）
+  * docs: 更新多选批量管理与分类说明
+
+ -- shenmo <shenmo@spark-app.store>  Sat, 21 Nov 2026 15:09:52 +0800
+
 gxde-wallpaper-chooser (0.2.8) UNRELEASED; urgency=medium
 
   * feat: 新增「多选」按钮，支持勾选多张自定义壁纸批量删除

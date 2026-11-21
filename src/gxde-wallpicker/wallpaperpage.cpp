@@ -15,6 +15,7 @@
 #include <dinputdialog.h>
 
 #include <QAction>
+#include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDir>
@@ -170,6 +171,26 @@ static QString menuText(QString text)
     return text.replace(QLatin1Char('&'), QLatin1String("&&"));
 }
 
+namespace {
+
+// 批量归类对话框里的分类复选框：
+// PartiallyChecked 只用于展示「部分选中壁纸已在分类中」，不改动归属；
+// 点击时直接切到 Checked（全部加入）或 Unchecked（全部移出），
+// 避免 Qt 默认三态循环要点两次才能勾选一个新分类。
+class CategoryCheckBox : public QCheckBox
+{
+public:
+    using QCheckBox::QCheckBox;
+
+protected:
+    void nextCheckState() override
+    {
+        setCheckState(checkState() == Qt::Checked ? Qt::Unchecked : Qt::Checked);
+    }
+};
+
+} // namespace
+
 WallpaperPage::WallpaperPage(AppearanceClient *appearance,
                              DisplaySettings *displaySettings,
                              ThumbnailProvider *thumbnails,
@@ -261,7 +282,7 @@ void WallpaperPage::buildChrome()
     m_categoryBtn->setToolTip(tr("Create, rename or delete custom categories; right-click a wallpaper to add it to a category"));
     m_selectBtn = new QPushButton(tr("Multi-select"), this);
     m_selectBtn->setCheckable(true);
-    m_selectBtn->setToolTip(tr("Select multiple custom wallpapers and delete them"));
+    m_selectBtn->setToolTip(tr("Select multiple custom wallpapers to add them to categories or delete them"));
     sourceRow->addWidget(m_sourceLabel);
     sourceRow->addWidget(m_sourceCombo, 1);
     sourceRow->addSpacing(8);
@@ -292,11 +313,17 @@ void WallpaperPage::buildChrome()
     selectionRow->setContentsMargins(0, 0, 0, 0);
     selectionRow->setSpacing(8);
     m_selectionLabel = new QLabel(m_selectionBar);
+    m_addToCategoryBtn = new QPushButton(
+        QIcon::fromTheme(QStringLiteral("folder-new")), tr("Add to Category..."),
+        m_selectionBar);
+    m_addToCategoryBtn->setToolTip(
+        tr("Add all selected wallpapers to one or more categories"));
     m_deleteSelectedBtn = new QPushButton(
         QIcon::fromTheme(QStringLiteral("edit-delete")), tr("Delete Selected"),
         m_selectionBar);
     selectionRow->addWidget(m_selectionLabel);
     selectionRow->addStretch();
+    selectionRow->addWidget(m_addToCategoryBtn);
     selectionRow->addWidget(m_deleteSelectedBtn);
     m_selectionBar->setVisible(false);
     m_rootLayout->addWidget(m_selectionBar);
@@ -355,6 +382,8 @@ void WallpaperPage::buildChrome()
             &WallpaperPage::showCategoryMenu);
     connect(m_selectBtn, &QPushButton::clicked, this,
             &WallpaperPage::toggleSelectionMode);
+    connect(m_addToCategoryBtn, &QPushButton::clicked, this,
+            &WallpaperPage::showSelectionCategoryDialog);
     connect(m_deleteSelectedBtn, &QPushButton::clicked, this,
             &WallpaperPage::deleteSelectedWallpapers);
     updateSelectionUi();
@@ -388,14 +417,28 @@ void WallpaperPage::updateTargetUi()
 {
     const bool lock = isLockTarget();
     m_titleLabel->setText(lock ? tr("Select Lock Screen Background") : tr("Select Desktop Background"));
-    m_subtitleLabel->setText(lock
-        ? tr("Click an image to set it as your lock screen background.")
-        : tr("Click an image to set it as your desktop background."));
+    updateSubtitleText();
     // 显示方式 / 轮播只作用于桌面壁纸
     m_optionsBar->setVisible(!lock);
     if (m_browseFileAction) {
         m_browseFileAction->setText(lock ? tr("Select Image (P)...")
                                          : tr("Select Image or Dynamic Wallpaper (P)..."));
+    }
+}
+
+void WallpaperPage::updateSubtitleText()
+{
+    if (!m_subtitleLabel)
+        return;
+    if (m_selectionMode) {
+        m_subtitleLabel->setText(
+            tr("Select custom wallpapers, then add them to categories or delete them."));
+    } else if (isLockTarget()) {
+        m_subtitleLabel->setText(
+            tr("Click an image to set it as your lock screen background."));
+    } else {
+        m_subtitleLabel->setText(
+            tr("Click an image to set it as your desktop background."));
     }
 }
 
@@ -646,6 +689,26 @@ void WallpaperPage::rebuildGroups()
     // 直到鼠标悬停再次触发请求才显示。
     for (const QString &path : pathsToLoad)
         m_thumbnails->request(path, QSize(156, 96));
+
+    // 重建后只保留仍可见的选中项：切换来源或批量移出当前分类后，
+    // 不可见的卡片不应继续参与批量归类/删除
+    if (m_selectionMode) {
+        QSet<QString> visible;
+        for (GroupSection *group : m_groups) {
+            const auto items = group->findChildren<ThumbnailItem *>();
+            for (ThumbnailItem *item : items)
+                visible.insert(item->path());
+        }
+        QSet<QString> kept;
+        for (const QString &path : m_selectedPaths) {
+            if (visible.contains(path))
+                kept.insert(path);
+        }
+        if (kept != m_selectedPaths) {
+            m_selectedPaths = kept;
+            updateSelectionUi();
+        }
+    }
 }
 
 void WallpaperPage::onThumbnailReady(const QString &path, const QPixmap &pixmap)
@@ -1175,8 +1238,14 @@ void WallpaperPage::setSelectionMode(bool on)
         m_selectBtn->setChecked(on);
         m_selectBtn->setText(on ? tr("Cancel Multi-select") : tr("Multi-select"));
     }
-    if (m_selectionBar)
+    if (m_selectionBar) {
         m_selectionBar->setVisible(on);
+        // 立即重排：滚动区尺寸提示依赖内容，延迟布局会让操作栏暂时压在
+        // 滚动区上，按钮点不到，反而点到底下的分组标题
+        m_rootLayout->invalidate();
+        m_rootLayout->activate();
+    }
+    updateSubtitleText();
 
     for (GroupSection *group : m_groups) {
         const auto items = group->findChildren<ThumbnailItem *>();
@@ -1212,8 +1281,151 @@ void WallpaperPage::updateSelectionUi()
     const int count = m_selectedPaths.size();
     if (m_selectionLabel)
         m_selectionLabel->setText(tr("Selected: %1").arg(count));
+    if (m_addToCategoryBtn)
+        m_addToCategoryBtn->setEnabled(count > 0);
     if (m_deleteSelectedBtn)
         m_deleteSelectedBtn->setEnabled(count > 0);
+}
+
+void WallpaperPage::showSelectionCategoryDialog()
+{
+    if (!m_selectionMode || m_selectedPaths.isEmpty())
+        return;
+
+    // 还没有任何分类时，直接走「新建分类并全部加入」，少一次空对话框
+    const QStringList names = m_categories->names();
+    if (names.isEmpty()) {
+        createCategoryForSelected();
+        return;
+    }
+
+    const QStringList selectedPaths(m_selectedPaths.begin(), m_selectedPaths.end());
+    const int selectedCount = selectedPaths.size();
+
+    Dtk::Widget::DDialog dialog(
+        tr("Add to Categories"),
+        tr("Choose the categories for the %1 selected wallpaper(s). "
+           "Partially checked categories contain only some of them.")
+            .arg(selectedCount),
+        this);
+    dialog.setIcon(QIcon::fromTheme(QStringLiteral("folder")), QSize(32, 32));
+
+    auto *content = new QWidget;
+    auto *contentLayout = new QVBoxLayout(content);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto *scroll = new QScrollArea(content);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setMinimumWidth(280);
+    // 分类较多时限制高度并滚动，避免对话框超出屏幕
+    scroll->setMaximumHeight(qMin(300, 34 * names.size() + 8));
+
+    auto *listHost = new QWidget;
+    auto *listLayout = new QVBoxLayout(listHost);
+    listLayout->setContentsMargins(0, 0, 0, 0);
+    listLayout->setSpacing(6);
+
+    struct Choice {
+        QString name;
+        CategoryCheckBox *box;
+    };
+    QList<Choice> choices;
+    for (const QString &name : names) {
+        int assigned = 0;
+        for (const QString &path : selectedPaths) {
+            if (m_categories->inCategory(name, path))
+                ++assigned;
+        }
+        auto *box = new CategoryCheckBox(name, listHost);
+        box->setTristate(true); // 只用于显示「部分已归类」，点击不循环到该态
+        box->setCheckState(assigned == selectedCount ? Qt::Checked
+                           : assigned > 0        ? Qt::PartiallyChecked
+                                                 : Qt::Unchecked);
+        listLayout->addWidget(box);
+        choices.append({name, box});
+    }
+    listLayout->addStretch();
+    scroll->setWidget(listHost);
+    contentLayout->addWidget(scroll);
+    dialog.addContent(content);
+
+    dialog.addButton(tr("Cancel"));
+    const int newCategoryButton = dialog.addButton(tr("New Category and Add..."));
+    const int applyButton =
+        dialog.addButton(tr("Apply"), true, Dtk::Widget::DDialog::ButtonRecommend);
+
+    const int clicked = dialog.exec();
+    if (clicked == newCategoryButton) {
+        createCategoryForSelected();
+        return;
+    }
+    if (clicked != applyButton)
+        return;
+
+    int failed = 0;
+    for (const Choice &choice : choices) {
+        const Qt::CheckState state = choice.box->checkState();
+        if (state == Qt::PartiallyChecked)
+            continue; // 未改动的「部分归类」保持原样
+        for (const QString &path : selectedPaths) {
+            const bool ok = state == Qt::Checked
+                ? m_categories->assign(choice.name, path)
+                : m_categories->unassign(choice.name, path);
+            if (!ok)
+                ++failed;
+        }
+    }
+
+    refreshCategories();
+    if (failed > 0) {
+        showWarning(this, tr("Cannot update categories"),
+                    tr("Failed to update the category assignment of %1 wallpaper(s).")
+                        .arg(failed));
+        return;
+    }
+    QToolTip::showText(
+        m_addToCategoryBtn->mapToGlobal(
+            QPoint(m_addToCategoryBtn->width() / 2, m_addToCategoryBtn->height())),
+        tr("Categories updated for %1 selected wallpaper(s).").arg(selectedCount),
+        m_addToCategoryBtn, QRect(), 4000);
+}
+
+void WallpaperPage::createCategoryForSelected()
+{
+    if (!m_selectionMode || m_selectedPaths.isEmpty())
+        return;
+
+    const QString name = promptCategoryName(tr("New Category"));
+    if (name.isEmpty())
+        return;
+    if (!m_categories->create(name)) {
+        showWarning(this, tr("Cannot create category"),
+                    tr("Failed to create category %1.").arg(name));
+        return;
+    }
+
+    const QStringList selectedPaths(m_selectedPaths.begin(), m_selectedPaths.end());
+    int failed = 0;
+    for (const QString &path : selectedPaths) {
+        if (!m_categories->assign(name, path))
+            ++failed;
+    }
+    refreshCategories();
+
+    if (failed > 0) {
+        showWarning(this, tr("Cannot update categories"),
+                    tr("Failed to add %1 selected wallpaper(s) to category %2.")
+                        .arg(failed).arg(name));
+        return;
+    }
+    QToolTip::showText(
+        m_addToCategoryBtn->mapToGlobal(
+            QPoint(m_addToCategoryBtn->width() / 2, m_addToCategoryBtn->height())),
+        tr("Added %1 selected wallpaper(s) to category %2.")
+            .arg(selectedPaths.size()).arg(name),
+        m_addToCategoryBtn, QRect(), 4000);
 }
 
 void WallpaperPage::deleteSelectedWallpapers()

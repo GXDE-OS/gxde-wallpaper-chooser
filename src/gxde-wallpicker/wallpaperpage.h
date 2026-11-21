@@ -10,8 +10,8 @@
  * 交互：
  *  - 单击缩略图立即应用（桌面模式 / 锁屏模式由 setTarget 决定）
  *  - 右键缩略图可加入/移出用户自定义分类
- *  - 「多选」进入批量删除模式：自定义壁纸右上角出现复选框，可多选后删除；
- *    系统壁纸不可勾选，退出多选后恢复单击应用
+ *  - 「多选」进入批量管理模式：自定义壁纸右上角出现复选框，可多选后批量
+ *    加入一个或多个分类、或删除；系统壁纸不可勾选，退出多选后恢复单击应用
  *  - 「分类(C)...」新建、重命名、删除分类，分类写入用户配置持久化
  *  - 轮播间隔变更立即写 daemon（仅桌面模式）
  *  - 「浏览」可选文件夹（加入来源）或单个图片/动态壁纸（入库并立即应用）；
@@ -99,10 +99,14 @@ private slots:
     void onItemSelectionToggled(const QString &path, bool checked);
     void updateSelectionUi();
     void deleteSelectedWallpapers();
+    // 批量归类：勾选多个分类应用到全部选中壁纸
+    void showSelectionCategoryDialog();
+    void createCategoryForSelected();
 
 private:
     void buildChrome(); // 标题/说明/来源行/底部选项行
     void updateTargetUi();
+    void updateSubtitleText();
     void populateSources();
     void browseFolder();        // 「浏览」→ 选择文件夹加入来源
     void browseWallpaperFile(); // 「浏览」→ 选择单个图片/动态壁纸并立即应用
@@ -175,6 +179,7 @@ private:
     QWidget *m_optionsBar = nullptr;
     QWidget *m_selectionBar = nullptr;
     QLabel *m_selectionLabel = nullptr;
+    QPushButton *m_addToCategoryBtn = nullptr;
     QPushButton *m_deleteSelectedBtn = nullptr;
     bool m_selectionMode = false;
     QSet<QString> m_selectedPaths;

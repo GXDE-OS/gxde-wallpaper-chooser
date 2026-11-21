@@ -508,9 +508,19 @@ Right-click to add to a category</source>
         <translation>取消多选</translation>
     </message>
     <message>
-        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="264"/>
-        <source>Select multiple custom wallpapers and delete them</source>
-        <translation>勾选多张自定义壁纸并批量删除</translation>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="285"/>
+        <source>Select multiple custom wallpapers to add them to categories or delete them</source>
+        <translation>勾选多张自定义壁纸，批量加入分类或删除</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="317"/>
+        <source>Add to Category...</source>
+        <translation>加入分类...</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="320"/>
+        <source>Add all selected wallpapers to one or more categories</source>
+        <translation>将选中的壁纸批量加入一个或多个分类</translation>
     </message>
     <message>
         <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="296"/>
@@ -531,6 +541,57 @@ Right-click to add to a category</source>
         <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1214"/>
         <source>Delete %1 selected wallpaper(s)? The image files will be removed from disk.</source>
         <translation>删除选中的 %1 张壁纸？这些图片文件将从磁盘中移除。</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="435"/>
+        <source>Select custom wallpapers, then add them to categories or delete them.</source>
+        <translation>勾选多张自定义壁纸，可批量加入分类或删除。</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1306"/>
+        <source>Add to Categories</source>
+        <translation>加入分类</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1307"/>
+        <source>Choose the categories for the %1 selected wallpaper(s). Partially checked categories contain only some of them.</source>
+        <translation>为选中的 %1 张壁纸选择分类。半选状态表示只有部分选中壁纸属于该分类。</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1354"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1357"/>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1383"/>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1418"/>
+        <source>Cannot update categories</source>
+        <translation>无法更新分类</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1384"/>
+        <source>Failed to update the category assignment of %1 wallpaper(s).</source>
+        <translation>更新 %1 张壁纸的分类归属失败。</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1391"/>
+        <source>Categories updated for %1 selected wallpaper(s).</source>
+        <translation>已更新 %1 张选中壁纸的分类。</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1419"/>
+        <source>Failed to add %1 selected wallpaper(s) to category %2.</source>
+        <translation>无法将 %1 张选中的壁纸加入分类“%2”。</translation>
+    </message>
+    <message>
+        <location filename="../src/gxde-wallpicker/wallpaperpage.cpp" line="1426"/>
+        <source>Added %1 selected wallpaper(s) to category %2.</source>
+        <translation>已将 %1 张选中的壁纸加入分类“%2”。</translation>
     </message>
 </context>
 <context>
